@@ -6,16 +6,53 @@ import { createClient } from '@/lib/supabase/client';
 import { Input } from '@/components/ui/Input';
 import { Button } from '@/components/ui/Button';
 
+type AuthMode = 'signin' | 'signup' | 'magic-link';
+
 function LoginForm() {
   const [email, setEmail] = useState('');
+  const [password, setPassword] = useState('');
   const [isLoading, setIsLoading] = useState(false);
   const [isSent, setIsSent] = useState(false);
+  const [authMode, setAuthMode] = useState<AuthMode>('signin');
   const [error, setError] = useState<string | null>(null);
   const router = useRouter();
   const searchParams = useSearchParams();
   const redirect = searchParams.get('redirect') || '/host';
 
-  const handleSubmit = async (e: React.FormEvent) => {
+  const handlePasswordAuth = async (e: React.FormEvent) => {
+    e.preventDefault();
+    setIsLoading(true);
+    setError(null);
+
+    try {
+      const supabase = createClient();
+
+      if (authMode === 'signup') {
+        const { error } = await supabase.auth.signUp({
+          email,
+          password,
+          options: {
+            emailRedirectTo: `${window.location.origin}/auth/callback?redirect=${encodeURIComponent(redirect)}`,
+          },
+        });
+        if (error) throw error;
+        setIsSent(true);
+      } else {
+        const { error } = await supabase.auth.signInWithPassword({
+          email,
+          password,
+        });
+        if (error) throw error;
+        router.push(redirect);
+      }
+    } catch (err) {
+      setError(err instanceof Error ? err.message : 'Authentication failed');
+    } finally {
+      setIsLoading(false);
+    }
+  };
+
+  const handleMagicLink = async (e: React.FormEvent) => {
     e.preventDefault();
     setIsLoading(true);
     setError(null);
@@ -30,10 +67,7 @@ function LoginForm() {
         },
       });
 
-      if (error) {
-        throw error;
-      }
-
+      if (error) throw error;
       setIsSent(true);
     } catch (err) {
       setError(err instanceof Error ? err.message : 'Error sending link');
@@ -61,12 +95,16 @@ function LoginForm() {
           </svg>
         </div>
         <h1 className="text-xl font-bold text-white mb-2">Check Your Email</h1>
-        <p className="text-white/60">We sent a login link to {email}</p>
+        <p className="text-white/60">
+          {authMode === 'signup'
+            ? `We sent a confirmation link to ${email}`
+            : `We sent a login link to ${email}`}
+        </p>
         <button
           onClick={() => setIsSent(false)}
           className="mt-6 text-pink-400 hover:text-pink-300"
         >
-          Send Again
+          Try Again
         </button>
       </div>
     );
@@ -76,32 +114,114 @@ function LoginForm() {
     <div className="w-full max-w-sm">
       <div className="text-center mb-8">
         <h1 className="text-2xl font-bold text-white mb-2">Host Login</h1>
-        <p className="text-white/60">Enter your email to receive a login link</p>
+        <p className="text-white/60">
+          {authMode === 'signup'
+            ? 'Create your account'
+            : authMode === 'magic-link'
+            ? 'Get a login link via email'
+            : 'Sign in to your account'}
+        </p>
       </div>
 
-      <form onSubmit={handleSubmit} className="space-y-6">
-        <Input
-          name="email"
-          type="email"
-          label="Email"
-          placeholder="your@email.com"
-          value={email}
-          onChange={(e) => setEmail(e.target.value)}
-          required
-          dir="ltr"
-          error={error || undefined}
-        />
+      {authMode === 'magic-link' ? (
+        <form onSubmit={handleMagicLink} className="space-y-6">
+          <Input
+            name="email"
+            type="email"
+            label="Email"
+            placeholder="your@email.com"
+            value={email}
+            onChange={(e) => setEmail(e.target.value)}
+            required
+            dir="ltr"
+            error={error || undefined}
+          />
 
-        <Button
-          type="submit"
-          isLoading={isLoading}
-          disabled={!email}
-          className="w-full"
-          size="lg"
-        >
-          Send Login Link
-        </Button>
-      </form>
+          <Button
+            type="submit"
+            isLoading={isLoading}
+            disabled={!email}
+            className="w-full"
+            size="lg"
+          >
+            Send Magic Link
+          </Button>
+        </form>
+      ) : (
+        <form onSubmit={handlePasswordAuth} className="space-y-4">
+          <Input
+            name="email"
+            type="email"
+            label="Email"
+            placeholder="your@email.com"
+            value={email}
+            onChange={(e) => setEmail(e.target.value)}
+            required
+            dir="ltr"
+          />
+
+          <Input
+            name="password"
+            type="password"
+            label="Password"
+            placeholder="Enter your password"
+            value={password}
+            onChange={(e) => setPassword(e.target.value)}
+            required
+            dir="ltr"
+            error={error || undefined}
+          />
+
+          <Button
+            type="submit"
+            isLoading={isLoading}
+            disabled={!email || !password}
+            className="w-full"
+            size="lg"
+          >
+            {authMode === 'signup' ? 'Sign Up' : 'Sign In'}
+          </Button>
+        </form>
+      )}
+
+      {/* Auth mode toggles */}
+      <div className="mt-6 space-y-3 text-center">
+        {authMode === 'signin' && (
+          <>
+            <button
+              onClick={() => setAuthMode('signup')}
+              className="text-white/60 hover:text-white text-sm"
+            >
+              Don't have an account? <span className="text-pink-400">Sign up</span>
+            </button>
+            <div className="text-white/30 text-xs">or</div>
+            <button
+              onClick={() => setAuthMode('magic-link')}
+              className="text-white/60 hover:text-white text-sm"
+            >
+              Sign in with <span className="text-pink-400">magic link</span>
+            </button>
+          </>
+        )}
+
+        {authMode === 'signup' && (
+          <button
+            onClick={() => setAuthMode('signin')}
+            className="text-white/60 hover:text-white text-sm"
+          >
+            Already have an account? <span className="text-pink-400">Sign in</span>
+          </button>
+        )}
+
+        {authMode === 'magic-link' && (
+          <button
+            onClick={() => setAuthMode('signin')}
+            className="text-white/60 hover:text-white text-sm"
+          >
+            Sign in with <span className="text-pink-400">password</span>
+          </button>
+        )}
+      </div>
 
       <button
         onClick={() => router.push('/')}
