@@ -61,7 +61,7 @@ export function VideoPlayer({
       {/* Cloudflare Stream Player - full bleed vertical video */}
       <iframe
         src={iframeSrc}
-        className="absolute inset-0 w-full h-full border-0 pointer-events-none"
+        className="absolute inset-0 w-full h-full border-0"
         allow="accelerometer; gyroscope; autoplay; encrypted-media; picture-in-picture;"
         allowFullScreen
       />
