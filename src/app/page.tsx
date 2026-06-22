@@ -1,65 +1,149 @@
-import Image from "next/image";
+import Link from 'next/link';
+import { createClient } from '@/lib/supabase/server';
+import { Badge } from '@/components/ui/Badge';
+import type { Show } from '@/types/database';
 
-export default function Home() {
+export default async function HomePage() {
+  const supabase = await createClient();
+
+  const { data: shows } = await supabase
+    .from('shows')
+    .select('*')
+    .in('status', ['scheduled', 'live'])
+    .order('scheduled_at', { ascending: true });
+
+  const liveShows = (shows as Show[] | null)?.filter((s) => s.status === 'live') || [];
+  const upcomingShows = (shows as Show[] | null)?.filter((s) => s.status === 'scheduled') || [];
+
+  const formatDate = (date: string) => {
+    return new Intl.DateTimeFormat('en-US', {
+      weekday: 'short',
+      day: 'numeric',
+      month: 'short',
+      hour: '2-digit',
+      minute: '2-digit',
+    }).format(new Date(date));
+  };
+
   return (
-    <div className="flex flex-col flex-1 items-center justify-center bg-zinc-50 font-sans dark:bg-black">
-      <main className="flex flex-1 w-full max-w-3xl flex-col items-center justify-between py-32 px-16 bg-white dark:bg-black sm:items-start">
-        <Image
-          className="dark:invert"
-          src="/next.svg"
-          alt="Next.js logo"
-          width={100}
-          height={20}
-          priority
-        />
-        <div className="flex flex-col items-center gap-6 text-center sm:items-start sm:text-left">
-          <h1 className="max-w-xs text-3xl font-semibold leading-10 tracking-tight text-black dark:text-zinc-50">
-            To get started, edit the page.tsx file.
-          </h1>
-          <p className="max-w-md text-lg leading-8 text-zinc-600 dark:text-zinc-400">
-            Looking for a starting point or more instructions? Head over to{" "}
-            <a
-              href="https://vercel.com/templates?framework=next.js&utm_source=create-next-app&utm_medium=appdir-template-tw&utm_campaign=create-next-app"
-              className="font-medium text-zinc-950 dark:text-zinc-50"
+    <main className="min-h-screen bg-gradient-to-b from-gray-900 to-black">
+      {/* Header */}
+      <header className="p-4 flex items-center justify-between">
+        <h1 className="text-xl font-bold text-white">Live Shopping</h1>
+        <Link
+          href="/login"
+          className="text-sm text-white/70 hover:text-white"
+        >
+          Host Login
+        </Link>
+      </header>
+
+      {/* Live Now Section */}
+      {liveShows.length > 0 && (
+        <section className="px-4 py-6">
+          <h2 className="text-lg font-semibold text-white mb-4 flex items-center gap-2">
+            <span className="relative flex h-3 w-3">
+              <span className="animate-ping absolute inline-flex h-full w-full rounded-full bg-red-500 opacity-75" />
+              <span className="relative inline-flex rounded-full h-3 w-3 bg-red-500" />
+            </span>
+            Live Now
+          </h2>
+          <div className="space-y-4">
+            {liveShows.map((show) => (
+              <Link
+                key={show.id}
+                href={`/live/${show.id}`}
+                className="block bg-gradient-to-r from-pink-500/20 to-purple-500/20 rounded-2xl p-4 border border-pink-500/30 hover:border-pink-500/50 transition-colors"
+              >
+                <div className="flex items-start justify-between">
+                  <div>
+                    <Badge variant="live" pulse>
+                      LIVE
+                    </Badge>
+                    <h3 className="text-white font-semibold mt-2">
+                      {show.title}
+                    </h3>
+                  </div>
+                  <svg
+                    className="w-6 h-6 text-white/50"
+                    fill="none"
+                    stroke="currentColor"
+                    viewBox="0 0 24 24"
+                  >
+                    <path
+                      strokeLinecap="round"
+                      strokeLinejoin="round"
+                      strokeWidth={2}
+                      d="M9 5l7 7-7 7"
+                    />
+                  </svg>
+                </div>
+              </Link>
+            ))}
+          </div>
+        </section>
+      )}
+
+      {/* Upcoming Shows */}
+      <section className="px-4 py-6">
+        <h2 className="text-lg font-semibold text-white mb-4">
+          Upcoming Shows
+        </h2>
+        {upcomingShows.length === 0 ? (
+          <div className="text-center py-12 text-white/50">
+            <svg
+              className="w-16 h-16 mx-auto mb-4"
+              fill="none"
+              stroke="currentColor"
+              viewBox="0 0 24 24"
             >
-              Templates
-            </a>{" "}
-            or the{" "}
-            <a
-              href="https://nextjs.org/learn?utm_source=create-next-app&utm_medium=appdir-template-tw&utm_campaign=create-next-app"
-              className="font-medium text-zinc-950 dark:text-zinc-50"
-            >
-              Learning
-            </a>{" "}
-            center.
-          </p>
-        </div>
-        <div className="flex flex-col gap-4 text-base font-medium sm:flex-row">
-          <a
-            className="flex h-12 w-full items-center justify-center gap-2 rounded-full bg-foreground px-5 text-background transition-colors hover:bg-[#383838] dark:hover:bg-[#ccc] md:w-[158px]"
-            href="https://vercel.com/new?utm_source=create-next-app&utm_medium=appdir-template-tw&utm_campaign=create-next-app"
-            target="_blank"
-            rel="noopener noreferrer"
-          >
-            <Image
-              className="dark:invert"
-              src="/vercel.svg"
-              alt="Vercel logomark"
-              width={16}
-              height={16}
-            />
-            Deploy Now
-          </a>
-          <a
-            className="flex h-12 w-full items-center justify-center rounded-full border border-solid border-black/[.08] px-5 transition-colors hover:border-transparent hover:bg-black/[.04] dark:border-white/[.145] dark:hover:bg-[#1a1a1a] md:w-[158px]"
-            href="https://nextjs.org/docs?utm_source=create-next-app&utm_medium=appdir-template-tw&utm_campaign=create-next-app"
-            target="_blank"
-            rel="noopener noreferrer"
-          >
-            Documentation
-          </a>
-        </div>
-      </main>
-    </div>
+              <path
+                strokeLinecap="round"
+                strokeLinejoin="round"
+                strokeWidth={1.5}
+                d="M15 10l4.553-2.276A1 1 0 0121 8.618v6.764a1 1 0 01-1.447.894L15 14M5 18h8a2 2 0 002-2V8a2 2 0 00-2-2H5a2 2 0 00-2 2v8a2 2 0 002 2z"
+              />
+            </svg>
+            <p>No upcoming shows scheduled</p>
+            <p className="text-sm mt-1">Check back soon!</p>
+          </div>
+        ) : (
+          <div className="space-y-3">
+            {upcomingShows.map((show) => (
+              <Link
+                key={show.id}
+                href={`/live/${show.id}`}
+                className="block bg-white/5 rounded-xl p-4 hover:bg-white/10 transition-colors"
+              >
+                <div className="flex items-center justify-between">
+                  <div>
+                    <Badge variant="scheduled">Scheduled</Badge>
+                    <h3 className="text-white font-medium mt-2">
+                      {show.title}
+                    </h3>
+                    <p className="text-white/60 text-sm mt-1">
+                      {formatDate(show.scheduled_at)}
+                    </p>
+                  </div>
+                  <svg
+                    className="w-5 h-5 text-white/40"
+                    fill="none"
+                    stroke="currentColor"
+                    viewBox="0 0 24 24"
+                  >
+                    <path
+                      strokeLinecap="round"
+                      strokeLinejoin="round"
+                      strokeWidth={2}
+                      d="M9 5l7 7-7 7"
+                    />
+                  </svg>
+                </div>
+              </Link>
+            ))}
+          </div>
+        )}
+      </section>
+    </main>
   );
 }
