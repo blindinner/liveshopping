@@ -53,8 +53,8 @@ export function VideoPlayer({
     );
   }
 
-  // Cloudflare Stream iframe URL
-  const iframeSrc = `https://customer-${process.env.NEXT_PUBLIC_CLOUDFLARE_ACCOUNT_ID || ''}.cloudflarestream.com/${playbackId}/iframe?muted=true&autoplay=true&loop=false&controls=false`;
+  // Cloudflare Stream iframe URL with mobile-friendly params
+  const iframeSrc = `https://customer-${process.env.NEXT_PUBLIC_CLOUDFLARE_ACCOUNT_ID || ''}.cloudflarestream.com/${playbackId}/iframe?muted=true&autoplay=true&loop=false&controls=true&playsinline=true&preload=auto`;
 
   return (
     <div className="absolute inset-0">
