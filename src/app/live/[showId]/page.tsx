@@ -7,6 +7,7 @@ import { Reactions } from '@/components/viewer/Reactions';
 import { ProductCard } from '@/components/viewer/ProductCard';
 import { ProductTray } from '@/components/viewer/ProductTray';
 import { CartDrawer } from '@/components/viewer/CartDrawer';
+import { CheckoutBar } from '@/components/viewer/CheckoutBar';
 // TODO: Re-enable lead capture form after testing
 // import { LeadCaptureForm } from '@/components/viewer/LeadCaptureForm';
 import { Countdown } from '@/components/viewer/Countdown';
@@ -194,10 +195,11 @@ export default function LiveViewerPage() {
         products={products}
         onSelectProduct={handleSelectProduct}
         locale={locale}
+        hasCartItems={itemCount > 0}
       />
 
-      {/* Chat overlay - positioned at bottom with z-40 to stay above products */}
-      <div className="absolute bottom-0 inset-x-0 z-40 pointer-events-auto">
+      {/* Chat overlay - positioned above checkout bar */}
+      <div className={`absolute inset-x-0 z-40 pointer-events-auto ${itemCount > 0 ? 'bottom-20' : 'bottom-0'}`}>
         <Chat
           messages={messages}
           onSendMessage={handleSendMessage}
@@ -207,12 +209,12 @@ export default function LiveViewerPage() {
         />
       </div>
 
-      {/* Cart button */}
-      <button
-        onClick={() => setIsCartOpen(true)}
-        className="absolute top-4 start-4 p-3 bg-white/10 backdrop-blur-sm rounded-full z-20 pointer-events-auto"
-      >
-        <div className="relative">
+      {/* Cart button - only show when cart is empty */}
+      {itemCount === 0 && (
+        <button
+          onClick={() => setIsCartOpen(true)}
+          className="absolute top-4 start-4 p-3 bg-white/10 backdrop-blur-sm rounded-full z-20 pointer-events-auto"
+        >
           <svg
             className="w-6 h-6 text-white"
             fill="none"
@@ -226,13 +228,19 @@ export default function LiveViewerPage() {
               d="M16 11V7a4 4 0 00-8 0v4M5 9h14l1 12H4L5 9z"
             />
           </svg>
-          {itemCount > 0 && (
-            <span className="absolute -top-2 -end-2 bg-pink-500 text-white text-xs w-5 h-5 rounded-full flex items-center justify-center font-bold">
-              {itemCount}
-            </span>
-          )}
-        </div>
-      </button>
+        </button>
+      )}
+
+      {/* Sticky checkout bar - shows when cart has items */}
+      <CheckoutBar
+        itemCount={itemCount}
+        total={total}
+        currency={cart.items[0]?.product.currency || 'ILS'}
+        onCheckout={checkout}
+        onViewCart={() => setIsCartOpen(true)}
+        isLoading={cartLoading}
+        locale={locale}
+      />
 
       {/* Cart drawer */}
       <CartDrawer

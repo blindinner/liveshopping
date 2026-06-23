@@ -7,12 +7,14 @@ interface ProductTrayProps {
   products: ShowProduct[];
   onSelectProduct: (product: ShowProduct) => void;
   locale: 'he' | 'en';
+  hasCartItems?: boolean;
 }
 
 export function ProductTray({
   products,
   onSelectProduct,
   locale,
+  hasCartItems = false,
 }: ProductTrayProps) {
   const isRTL = locale === 'he';
 
@@ -29,7 +31,9 @@ export function ProductTray({
 
   return (
     <div
-      className="absolute bottom-20 inset-x-4 z-30 pointer-events-auto"
+      className={`absolute inset-x-4 z-30 pointer-events-auto transition-all duration-300 ${
+        hasCartItems ? 'bottom-40' : 'bottom-20'
+      }`}
       dir={isRTL ? 'rtl' : 'ltr'}
     >
       <div className="bg-black/40 backdrop-blur-md rounded-2xl p-3">
