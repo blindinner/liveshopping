@@ -5,7 +5,6 @@ import { VideoPlayer } from '@/components/viewer/VideoPlayer';
 import { Chat } from '@/components/viewer/Chat';
 import { Reactions } from '@/components/viewer/Reactions';
 import { ProductCard } from '@/components/viewer/ProductCard';
-import { ProductTray } from '@/components/viewer/ProductTray';
 import { CartDrawer } from '@/components/viewer/CartDrawer';
 import { CheckoutBar } from '@/components/viewer/CheckoutBar';
 // TODO: Re-enable lead capture form after testing
@@ -33,12 +32,11 @@ export default function LiveViewerPage() {
   const [viewerName, setViewerName] = useState<string | null>('Guest');
   const [showLeadForm, setShowLeadForm] = useState(false);
   const [isCartOpen, setIsCartOpen] = useState(false);
-  const [selectedProduct, setSelectedProduct] = useState<ShowProduct | null>(null);
 
   // Real-time hooks
   const { show, isLoading: showLoading } = useShowStatus(showId);
   const { messages, sendMessage } = useChatMessages(showId, viewerId);
-  const { products, activeProduct } = useShowProducts(showId);
+  const { activeProduct } = useShowProducts(showId);
   const { viewerCount } = useViewerPresence(showId, viewerId);
   const { reactions, sendReaction } = useReactions(showId);
 
@@ -106,15 +104,6 @@ export default function LiveViewerPage() {
     [viewerName, sendMessage]
   );
 
-  // Handle product selection from tray
-  const handleSelectProduct = (product: ShowProduct) => {
-    setSelectedProduct(product);
-  };
-
-  // Update selected product when active product changes
-  useEffect(() => {
-    setSelectedProduct(activeProduct);
-  }, [activeProduct]);
 
   if (showLoading || !show) {
     return (
@@ -180,23 +169,15 @@ export default function LiveViewerPage() {
         }}
       />
 
-      {/* Active product card */}
-      {selectedProduct?.product && (
+      {/* Active product card - only shows when host features a product */}
+      {activeProduct?.product && (
         <ProductCard
-          product={selectedProduct.product}
-          onAddToCart={() => handleAddToCart(selectedProduct)}
+          product={activeProduct.product}
+          onAddToCart={() => handleAddToCart(activeProduct)}
           isLoading={cartLoading}
           locale={locale}
         />
       )}
-
-      {/* Product tray */}
-      <ProductTray
-        products={products}
-        onSelectProduct={handleSelectProduct}
-        locale={locale}
-        hasCartItems={itemCount > 0}
-      />
 
       {/* Chat overlay - positioned above checkout bar */}
       <div className={`absolute inset-x-0 z-40 pointer-events-auto ${itemCount > 0 ? 'bottom-20' : 'bottom-0'}`}>
