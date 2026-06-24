@@ -8,11 +8,11 @@ import { Countdown } from '@/components/viewer/Countdown';
 import {
   useShowProducts,
   useViewerPresence,
-  useShowStatus,
 } from '@/hooks/useRealtime';
 import { useCart } from '@/hooks/useCart';
-import type { Product, ShowProduct } from '@/types/database';
+import type { Product, Show } from '@/types/database';
 import { useParams, useSearchParams } from 'next/navigation';
+import { createClient } from '@/lib/supabase/client';
 
 // Instagram-style product card for mobile
 function MobileProductCard({
@@ -103,10 +103,80 @@ function MobileProductCard({
   );
 }
 
-export default function EmbedLiveViewerPage() {
+// Hook to find and subscribe to the current/next show for a brand
+function useBrandShow(brandId: string) {
+  const [show, setShow] = useState<Show | null>(null);
+  const [isLoading, setIsLoading] = useState(true);
+
+  useEffect(() => {
+    const supabase = createClient();
+
+    async function findShow() {
+      // First, try to find a live show
+      const { data: liveShow } = await supabase
+        .from('shows')
+        .select('*')
+        .eq('brand_id', brandId)
+        .eq('status', 'live')
+        .limit(1)
+        .single();
+
+      if (liveShow) {
+        setShow(liveShow);
+        setIsLoading(false);
+        return;
+      }
+
+      // If no live show, find the next scheduled show
+      const { data: scheduledShow } = await supabase
+        .from('shows')
+        .select('*')
+        .eq('brand_id', brandId)
+        .eq('status', 'scheduled')
+        .gte('scheduled_at', new Date().toISOString())
+        .order('scheduled_at', { ascending: true })
+        .limit(1)
+        .single();
+
+      setShow(scheduledShow || null);
+      setIsLoading(false);
+    }
+
+    findShow();
+
+    // Subscribe to show changes for this brand
+    const channel = supabase
+      .channel(`brand-shows:${brandId}`)
+      .on(
+        'postgres_changes',
+        {
+          event: '*',
+          schema: 'public',
+          table: 'shows',
+          filter: `brand_id=eq.${brandId}`,
+        },
+        async (payload) => {
+          console.log('[Realtime] Show change detected:', payload);
+          // Refetch the current show when any show changes
+          await findShow();
+        }
+      )
+      .subscribe((status) => {
+        console.log('[Realtime] Brand shows subscription:', status);
+      });
+
+    return () => {
+      supabase.removeChannel(channel);
+    };
+  }, [brandId]);
+
+  return { show, isLoading };
+}
+
+export default function BrandEmbedPage() {
   const params = useParams();
   const searchParams = useSearchParams();
-  const showId = params.showId as string;
+  const brandId = params.brandId as string;
 
   // Configuration from URL params
   const locale = (searchParams.get('locale') || 'en') as 'he' | 'en';
@@ -115,12 +185,14 @@ export default function EmbedLiveViewerPage() {
   const [viewerId] = useState(() => `embed-${Date.now()}-${Math.random().toString(36).slice(2)}`);
   const [isCartOpen, setIsCartOpen] = useState(false);
 
-  // Real-time hooks
-  const { show, isLoading: showLoading } = useShowStatus(showId);
-  const { activeProduct } = useShowProducts(showId);
-  const { viewerCount } = useViewerPresence(showId, viewerId);
+  // Find current/next show for this brand
+  const { show, isLoading: showLoading } = useBrandShow(brandId);
 
-  // Cart hook - pass showId and viewerId for analytics tracking
+  // Real-time hooks (only active when we have a show)
+  const { activeProduct } = useShowProducts(show?.id || '');
+  const { viewerCount } = useViewerPresence(show?.id || '', show ? viewerId : '');
+
+  // Cart hook
   const {
     cart,
     itemCount,
@@ -129,12 +201,12 @@ export default function EmbedLiveViewerPage() {
     addToCart,
     updateQuantity,
     removeFromCart,
-  } = useCart({ showId, viewerId });
+  } = useCart({ showId: show?.id || '', viewerId });
 
   // Track viewer_join event when viewer loads the live show
   useEffect(() => {
     if (show?.status === 'live') {
-      fetch(`/api/shows/${showId}/events`, {
+      fetch(`/api/shows/${show.id}/events`, {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({
@@ -143,23 +215,21 @@ export default function EmbedLiveViewerPage() {
         }),
       }).catch((err) => console.error('Failed to track viewer_join:', err));
     }
-  }, [show?.status, showId, viewerId]);
+  }, [show?.status, show?.id, viewerId]);
 
   // Handle product action (add to cart or buy now)
   const handleProductAction = useCallback(
     async (product: Product) => {
       if (product.source === 'manual' && product.checkout_url) {
-        // Open checkout URL in new tab for manual products
         window.open(product.checkout_url, '_blank', 'noopener,noreferrer');
       } else {
-        // Add to cart for Shopify products
         await addToCart(product);
       }
     },
     [addToCart]
   );
 
-  // Handle checkout - open in new tab on mobile
+  // Handle checkout
   const handleCheckout = useCallback(() => {
     if (cart.checkoutUrl) {
       window.open(cart.checkoutUrl, '_blank', 'noopener,noreferrer');
@@ -173,16 +243,21 @@ export default function EmbedLiveViewerPage() {
       showEnded: 'השידור הסתיים',
       checkout: 'לתשלום',
       live: 'לייב',
+      noShows: 'אין שידורים קרובים',
+      stayTuned: 'עקבו אחרינו לעדכונים',
     },
     en: {
       loading: 'Loading...',
       showEnded: 'Show ended',
       checkout: 'Checkout',
       live: 'LIVE',
+      noShows: 'No upcoming shows',
+      stayTuned: 'Stay tuned for updates',
     },
   }[locale];
 
-  if (showLoading || !show) {
+  // Loading state
+  if (showLoading) {
     return (
       <div className="fixed inset-0 bg-black flex items-center justify-center">
         <div className="animate-spin w-8 h-8 border-2 border-white border-t-transparent rounded-full" />
@@ -190,7 +265,30 @@ export default function EmbedLiveViewerPage() {
     );
   }
 
-  // Pre-show state (scheduled)
+  // No shows available
+  if (!show) {
+    return (
+      <div className="fixed inset-0 bg-gradient-to-b from-gray-900 to-black flex flex-col items-center justify-center p-6">
+        <svg
+          className="w-12 h-12 text-white/30 mb-3"
+          fill="none"
+          stroke="currentColor"
+          viewBox="0 0 24 24"
+        >
+          <path
+            strokeLinecap="round"
+            strokeLinejoin="round"
+            strokeWidth={1.5}
+            d="M15 10l4.553-2.276A1 1 0 0121 8.618v6.764a1 1 0 01-1.447.894L15 14M5 18h8a2 2 0 002-2V8a2 2 0 00-2-2H5a2 2 0 00-2 2v8a2 2 0 002 2z"
+          />
+        </svg>
+        <p className="text-white/60 text-base font-medium">{t.noShows}</p>
+        <p className="text-white/40 text-sm mt-1">{t.stayTuned}</p>
+      </div>
+    );
+  }
+
+  // Scheduled show - show countdown
   if (show.status === 'scheduled') {
     return (
       <div className="fixed inset-0 bg-gradient-to-b from-gray-900 to-black flex flex-col items-center justify-center p-6">
@@ -202,7 +300,7 @@ export default function EmbedLiveViewerPage() {
     );
   }
 
-  // Ended state
+  // Ended show (shouldn't happen often as we prioritize live/scheduled)
   if (show.status === 'ended') {
     return (
       <div className="fixed inset-0 bg-gradient-to-b from-gray-900 to-black flex flex-col items-center justify-center p-6">
@@ -295,7 +393,6 @@ export default function EmbedLiveViewerPage() {
             locale={locale}
           />
         ) : (
-          // Placeholder when no product is featured
           <div className="h-[88px] flex items-center justify-center text-white/30 text-sm">
             {/* Empty state - host hasn't featured a product yet */}
           </div>
