@@ -130,7 +130,8 @@ export async function GET(
     .ls-modal-controls {
       position: absolute;
       top: 12px;
-      left: 12px;
+      left: 50%;
+      transform: translateX(-50%);
       display: flex;
       gap: 8px;
       z-index: 10;

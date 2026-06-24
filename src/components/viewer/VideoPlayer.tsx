@@ -91,8 +91,7 @@ export function VideoPlayer({
               />
             </svg>
             <span className="text-white text-sm font-medium">
-              {viewerCount.toLocaleString(locale === 'he' ? 'he-IL' : 'en-US')}{' '}
-              {t.viewers}
+              {viewerCount.toLocaleString(locale === 'he' ? 'he-IL' : 'en-US')}
             </span>
           </div>
         </div>
