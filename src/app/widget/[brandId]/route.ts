@@ -8,32 +8,22 @@ export async function GET(
   const { brandId } = await params;
   const url = new URL(request.url);
   const baseUrl = `${url.protocol}//${url.host}`;
-  const locale = url.searchParams.get('locale') || 'he';
-
   const script = `
 (function() {
   const BRAND_ID = '${brandId}';
   const BASE_URL = '${baseUrl}';
-  const LOCALE = '${locale}';
   const CHECK_INTERVAL = 30000; // Check every 30 seconds
 
   let isWidgetOpen = false;
   let bubbleElement = null;
   let modalElement = null;
 
-  // Translations
+  // Text labels
   const t = {
-    he: {
-      live: 'לייב',
-      watchNow: 'צפה עכשיו',
-      close: 'סגור'
-    },
-    en: {
-      live: 'LIVE',
-      watchNow: 'Watch Now',
-      close: 'Close'
-    }
-  }[LOCALE] || { live: 'LIVE', watchNow: 'Watch Now', close: 'Close' };
+    live: 'LIVE',
+    watchNow: 'Watch Now',
+    close: 'Close'
+  };
 
   // Create styles
   const styles = document.createElement('style');
@@ -215,7 +205,7 @@ export async function GET(
         </button>
         <iframe
           class="ls-modal-iframe"
-          src="\${BASE_URL}/embed/brand/\${BRAND_ID}?locale=\${LOCALE}"
+          src="\${BASE_URL}/embed/brand/\${BRAND_ID}?locale=en"
           allow="autoplay; fullscreen"
         ></iframe>
       </div>
