@@ -247,28 +247,27 @@ export default function BrandEmbedPage() {
   // Handle share
   const handleShare = useCallback(async () => {
     const shareUrl = window.location.href.split('?')[0]; // Remove query params
-    const shareData = {
-      title: show?.title || 'Live Shopping',
-      text: 'Check out this live stream!',
-      url: shareUrl,
-    };
 
     // Check if native share is available (mobile)
-    if (navigator.share && navigator.canShare && navigator.canShare(shareData)) {
+    if (typeof navigator.share === 'function') {
       try {
-        await navigator.share(shareData);
+        await navigator.share({
+          title: show?.title || 'Live Shopping',
+          url: shareUrl,
+        });
+        return; // Success - exit
       } catch {
-        // User cancelled - do nothing
+        // User cancelled or not supported - fall through to clipboard
       }
-    } else {
-      // Desktop: copy to clipboard
-      try {
-        await navigator.clipboard.writeText(shareUrl);
-        setShowShareToast(true);
-        setTimeout(() => setShowShareToast(false), 2000);
-      } catch (err) {
-        console.error('Failed to copy:', err);
-      }
+    }
+
+    // Desktop or share failed: copy to clipboard
+    try {
+      await navigator.clipboard.writeText(shareUrl);
+      setShowShareToast(true);
+      setTimeout(() => setShowShareToast(false), 2000);
+    } catch (err) {
+      console.error('Failed to copy:', err);
     }
   }, [show?.title]);
 
