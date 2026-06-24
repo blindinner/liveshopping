@@ -8,21 +8,23 @@ export async function GET(
   const { brandId } = await params;
   const url = new URL(request.url);
   const baseUrl = `${url.protocol}//${url.host}`;
+
   const script = `
 (function() {
   const BRAND_ID = '${brandId}';
   const BASE_URL = '${baseUrl}';
-  const CHECK_INTERVAL = 30000; // Check every 30 seconds
+  const CHECK_INTERVAL = 30000;
 
-  let isWidgetOpen = false;
+  let currentMode = 'hidden'; // 'hidden' | 'bubble' | 'modal' | 'mini'
   let bubbleElement = null;
   let modalElement = null;
+  let miniElement = null;
 
-  // Text labels
   const t = {
     live: 'LIVE',
-    watchNow: 'Watch Now',
-    close: 'Close'
+    close: 'Close',
+    minimize: 'Minimize',
+    maximize: 'Maximize'
   };
 
   // Create styles
@@ -44,6 +46,8 @@ export async function GET(
       from { opacity: 0; }
       to { opacity: 1; }
     }
+
+    /* Bubble styles */
     .ls-bubble {
       position: fixed;
       bottom: 24px;
@@ -94,6 +98,8 @@ export async function GET(
       font-size: 14px;
       letter-spacing: 0.5px;
     }
+
+    /* Modal styles */
     .ls-modal-overlay {
       position: fixed;
       inset: 0;
@@ -121,10 +127,15 @@ export async function GET(
       height: 100%;
       border: none;
     }
-    .ls-modal-close {
+    .ls-modal-controls {
       position: absolute;
       top: 12px;
       right: 12px;
+      display: flex;
+      gap: 8px;
+      z-index: 10;
+    }
+    .ls-modal-btn {
       width: 36px;
       height: 36px;
       background: rgba(0, 0, 0, 0.6);
@@ -135,16 +146,89 @@ export async function GET(
       display: flex;
       align-items: center;
       justify-content: center;
-      z-index: 10;
       transition: background 0.2s;
     }
-    .ls-modal-close:hover {
+    .ls-modal-btn:hover {
       background: rgba(0, 0, 0, 0.8);
     }
-    .ls-modal-close svg {
-      width: 20px;
-      height: 20px;
+    .ls-modal-btn svg {
+      width: 18px;
+      height: 18px;
     }
+
+    /* Miniplayer styles */
+    .ls-mini {
+      position: fixed;
+      bottom: 24px;
+      right: 24px;
+      z-index: 9999999;
+      width: 180px;
+      height: 320px;
+      background: black;
+      border-radius: 12px;
+      overflow: hidden;
+      box-shadow: 0 8px 32px rgba(0, 0, 0, 0.3), 0 2px 8px rgba(0, 0, 0, 0.2);
+      animation: ls-slideIn 0.3s ease-out;
+      font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
+    }
+    .ls-mini-iframe {
+      width: 100%;
+      height: 100%;
+      border: none;
+    }
+    .ls-mini-controls {
+      position: absolute;
+      top: 8px;
+      right: 8px;
+      display: flex;
+      gap: 6px;
+      z-index: 10;
+    }
+    .ls-mini-btn {
+      width: 28px;
+      height: 28px;
+      background: rgba(0, 0, 0, 0.6);
+      border: none;
+      border-radius: 50%;
+      color: white;
+      cursor: pointer;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      transition: background 0.2s;
+    }
+    .ls-mini-btn:hover {
+      background: rgba(0, 0, 0, 0.8);
+    }
+    .ls-mini-btn svg {
+      width: 14px;
+      height: 14px;
+    }
+    .ls-mini-live {
+      position: absolute;
+      top: 8px;
+      left: 8px;
+      display: flex;
+      align-items: center;
+      gap: 4px;
+      background: #ef4444;
+      padding: 4px 8px;
+      border-radius: 4px;
+      z-index: 10;
+    }
+    .ls-mini-live-dot {
+      width: 6px;
+      height: 6px;
+      background: white;
+      border-radius: 50%;
+      animation: ls-pulse 1.5s ease-in-out infinite;
+    }
+    .ls-mini-live-text {
+      color: white;
+      font-size: 10px;
+      font-weight: 700;
+    }
+
     @media (max-width: 480px) {
       .ls-bubble {
         bottom: 16px;
@@ -161,13 +245,19 @@ export async function GET(
       .ls-modal-overlay {
         padding: 0;
       }
+      .ls-mini {
+        bottom: 16px;
+        right: 16px;
+        width: 140px;
+        height: 250px;
+      }
     }
   \`;
   document.head.appendChild(styles);
 
   // Create bubble element
   function createBubble() {
-    if (bubbleElement) return;
+    if (bubbleElement || currentMode === 'modal' || currentMode === 'mini') return;
 
     bubbleElement = document.createElement('div');
     bubbleElement.className = 'ls-bubble';
@@ -179,9 +269,9 @@ export async function GET(
     \`;
     bubbleElement.addEventListener('click', openModal);
     document.body.appendChild(bubbleElement);
+    currentMode = 'bubble';
   }
 
-  // Remove bubble
   function removeBubble() {
     if (bubbleElement) {
       bubbleElement.remove();
@@ -189,20 +279,27 @@ export async function GET(
     }
   }
 
-  // Open modal with embed
+  // Open fullscreen modal
   function openModal() {
-    if (modalElement) return;
-    isWidgetOpen = true;
+    removeBubble();
+    removeMini();
 
     modalElement = document.createElement('div');
     modalElement.className = 'ls-modal-overlay';
     modalElement.innerHTML = \`
       <div class="ls-modal-container">
-        <button class="ls-modal-close" aria-label="\${t.close}">
-          <svg fill="none" stroke="currentColor" viewBox="0 0 24 24">
-            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M6 18L18 6M6 6l12 12"/>
-          </svg>
-        </button>
+        <div class="ls-modal-controls">
+          <button class="ls-modal-btn ls-minimize-btn" aria-label="\${t.minimize}">
+            <svg fill="none" stroke="currentColor" viewBox="0 0 24 24">
+              <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M19 14l-7 7m0 0l-7-7m7 7V3"/>
+            </svg>
+          </button>
+          <button class="ls-modal-btn ls-close-btn" aria-label="\${t.close}">
+            <svg fill="none" stroke="currentColor" viewBox="0 0 24 24">
+              <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M6 18L18 6M6 6l12 12"/>
+            </svg>
+          </button>
+        </div>
         <iframe
           class="ls-modal-iframe"
           src="\${BASE_URL}/embed/brand/\${BRAND_ID}?locale=en"
@@ -211,34 +308,84 @@ export async function GET(
       </div>
     \`;
 
-    // Close on overlay click
     modalElement.addEventListener('click', (e) => {
-      if (e.target === modalElement) closeModal();
+      if (e.target === modalElement) minimizeToMini();
     });
 
-    // Close button
-    modalElement.querySelector('.ls-modal-close').addEventListener('click', closeModal);
+    modalElement.querySelector('.ls-close-btn').addEventListener('click', closeAll);
+    modalElement.querySelector('.ls-minimize-btn').addEventListener('click', minimizeToMini);
 
-    // Close on escape
     document.addEventListener('keydown', handleEscape);
-
     document.body.appendChild(modalElement);
     document.body.style.overflow = 'hidden';
+    currentMode = 'modal';
   }
 
-  // Close modal
-  function closeModal() {
+  function removeModal() {
     if (modalElement) {
       modalElement.remove();
       modalElement = null;
-      isWidgetOpen = false;
       document.body.style.overflow = '';
       document.removeEventListener('keydown', handleEscape);
     }
   }
 
+  // Minimize to corner miniplayer
+  function minimizeToMini() {
+    removeModal();
+
+    miniElement = document.createElement('div');
+    miniElement.className = 'ls-mini';
+    miniElement.innerHTML = \`
+      <div class="ls-mini-live">
+        <div class="ls-mini-live-dot"></div>
+        <span class="ls-mini-live-text">\${t.live}</span>
+      </div>
+      <div class="ls-mini-controls">
+        <button class="ls-mini-btn ls-maximize-btn" aria-label="\${t.maximize}">
+          <svg fill="none" stroke="currentColor" viewBox="0 0 24 24">
+            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M4 8V4m0 0h4M4 4l5 5m11-1V4m0 0h-4m4 0l-5 5M4 16v4m0 0h4m-4 0l5-5m11 5l-5-5m5 5v-4m0 4h-4"/>
+          </svg>
+        </button>
+        <button class="ls-mini-btn ls-close-btn" aria-label="\${t.close}">
+          <svg fill="none" stroke="currentColor" viewBox="0 0 24 24">
+            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M6 18L18 6M6 6l12 12"/>
+          </svg>
+        </button>
+      </div>
+      <iframe
+        class="ls-mini-iframe"
+        src="\${BASE_URL}/embed/brand/\${BRAND_ID}?locale=en"
+        allow="autoplay; fullscreen"
+      ></iframe>
+    \`;
+
+    miniElement.querySelector('.ls-maximize-btn').addEventListener('click', openModal);
+    miniElement.querySelector('.ls-close-btn').addEventListener('click', closeAll);
+
+    document.body.appendChild(miniElement);
+    currentMode = 'mini';
+  }
+
+  function removeMini() {
+    if (miniElement) {
+      miniElement.remove();
+      miniElement = null;
+    }
+  }
+
+  // Close everything and go back to bubble
+  function closeAll() {
+    removeModal();
+    removeMini();
+    currentMode = 'hidden';
+    checkLiveStatus(); // This will recreate bubble if still live
+  }
+
   function handleEscape(e) {
-    if (e.key === 'Escape') closeModal();
+    if (e.key === 'Escape') {
+      if (currentMode === 'modal') minimizeToMini();
+    }
   }
 
   // Check live status
@@ -248,12 +395,13 @@ export async function GET(
       const data = await response.json();
 
       if (data.isLive) {
-        createBubble();
+        if (currentMode === 'hidden') {
+          createBubble();
+        }
       } else {
-        removeBubble();
-        if (isWidgetOpen) {
-          // Optionally close modal when show ends
-          // closeModal();
+        if (currentMode === 'bubble') {
+          removeBubble();
+          currentMode = 'hidden';
         }
       }
     } catch (error) {
@@ -265,10 +413,11 @@ export async function GET(
   checkLiveStatus();
   setInterval(checkLiveStatus, CHECK_INTERVAL);
 
-  // Expose API for manual control
+  // Expose API
   window.LiveShopping = {
     open: openModal,
-    close: closeModal,
+    minimize: minimizeToMini,
+    close: closeAll,
     check: checkLiveStatus
   };
 })();
@@ -278,7 +427,7 @@ export async function GET(
     headers: {
       'Content-Type': 'application/javascript',
       'Access-Control-Allow-Origin': '*',
-      'Cache-Control': 'public, max-age=60', // Cache for 1 minute
+      'Cache-Control': 'public, max-age=60',
     },
   });
 }
