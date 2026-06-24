@@ -351,7 +351,7 @@ export async function GET(
       </div>
       <iframe
         class="ls-mini-iframe"
-        src="\${BASE_URL}/embed/brand/\${BRAND_ID}?locale=en"
+        src="\${BASE_URL}/embed/brand/\${BRAND_ID}?locale=en&mode=mini"
         allow="autoplay; fullscreen"
       ></iframe>
     \`;

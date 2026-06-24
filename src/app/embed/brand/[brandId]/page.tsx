@@ -182,6 +182,7 @@ export default function BrandEmbedPage() {
 
   // Configuration from URL params
   const locale = (searchParams.get('locale') || 'en') as 'he' | 'en';
+  const isMiniMode = searchParams.get('mode') === 'mini';
 
   // Generate viewer ID (persisted in memory for the session)
   const [viewerId] = useState(() => `embed-${Date.now()}-${Math.random().toString(36).slice(2)}`);
@@ -353,6 +354,20 @@ export default function BrandEmbedPage() {
   }
 
   // Live state - Instagram-style mobile view
+  // In mini mode, show only the video (no overlays)
+  if (isMiniMode) {
+    return (
+      <div className="fixed inset-0 bg-black">
+        <VideoPlayer
+          playbackId={show.cloudflare_playback_id}
+          isLive={show.status === 'live'}
+          viewerCount={0}
+          locale={locale}
+        />
+      </div>
+    );
+  }
+
   return (
     <div className="fixed inset-0 bg-black">
       {/* Video Player (fills entire screen) */}
