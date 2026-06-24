@@ -253,23 +253,21 @@ export default function BrandEmbedPage() {
       url: shareUrl,
     };
 
-    try {
-      if (navigator.share && navigator.canShare(shareData)) {
+    // Check if native share is available (mobile)
+    if (navigator.share && navigator.canShare && navigator.canShare(shareData)) {
+      try {
         await navigator.share(shareData);
-      } else {
-        // Fallback: copy to clipboard
-        await navigator.clipboard.writeText(shareUrl);
-        setShowShareToast(true);
-        setTimeout(() => setShowShareToast(false), 2000);
+      } catch {
+        // User cancelled - do nothing
       }
-    } catch (err) {
-      // User cancelled or error - try clipboard
+    } else {
+      // Desktop: copy to clipboard
       try {
         await navigator.clipboard.writeText(shareUrl);
         setShowShareToast(true);
         setTimeout(() => setShowShareToast(false), 2000);
-      } catch {
-        console.error('Failed to share:', err);
+      } catch (err) {
+        console.error('Failed to copy:', err);
       }
     }
   }, [show?.title]);
