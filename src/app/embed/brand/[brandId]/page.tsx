@@ -354,18 +354,89 @@ export default function BrandEmbedPage() {
 
   // Live state - Instagram-style mobile view
   return (
-    <div className="fixed inset-0 bg-black flex flex-col">
-      {/* Video Player (fills available space) */}
-      <div className="flex-1 relative min-h-0 overflow-hidden">
-        <VideoPlayer
-          playbackId={show.cloudflare_playback_id}
-          isLive={show.status === 'live'}
-          viewerCount={viewerCount}
-          locale={locale}
-        />
+    <div className="fixed inset-0 bg-black">
+      {/* Video Player (fills entire screen) */}
+      <VideoPlayer
+        playbackId={show.cloudflare_playback_id}
+        isLive={show.status === 'live'}
+        viewerCount={viewerCount}
+        locale={locale}
+      />
 
-        {/* Chat overlay on video */}
-        <div className="absolute bottom-0 left-0 right-0 z-20 pointer-events-auto">
+      {/* Top bar - Viewer count and cart */}
+      <div className="absolute top-0 left-0 right-0 p-3 flex items-center justify-between z-20 pointer-events-none">
+        {/* Viewer count */}
+        <div className="flex items-center gap-2 pointer-events-auto">
+          {viewerCount > 0 && (
+            <div className="flex items-center gap-1 px-2 py-1 bg-black/50 backdrop-blur-sm rounded-lg">
+              <svg className="w-3 h-3 text-white" fill="currentColor" viewBox="0 0 20 20">
+                <path d="M10 12a2 2 0 100-4 2 2 0 000 4z" />
+                <path fillRule="evenodd" d="M.458 10C1.732 5.943 5.522 3 10 3s8.268 2.943 9.542 7c-1.274 4.057-5.064 7-9.542 7S1.732 14.057.458 10zM14 10a4 4 0 11-8 0 4 4 0 018 0z" clipRule="evenodd" />
+              </svg>
+              <span className="text-white text-xs font-medium">{viewerCount}</span>
+            </div>
+          )}
+        </div>
+
+        {/* Cart button */}
+        <button
+          onClick={() => setIsCartOpen(true)}
+          className="p-2 bg-black/50 backdrop-blur-sm rounded-full pointer-events-auto"
+        >
+          <div className="relative">
+            <svg
+              className="w-5 h-5 text-white"
+              fill="none"
+              stroke="currentColor"
+              viewBox="0 0 24 24"
+            >
+              <path
+                strokeLinecap="round"
+                strokeLinejoin="round"
+                strokeWidth={2}
+                d="M16 11V7a4 4 0 00-8 0v4M5 9h14l1 12H4L5 9z"
+              />
+            </svg>
+            {itemCount > 0 && (
+              <span className="absolute -top-1.5 -right-1.5 bg-pink-500 text-white text-[10px] w-4 h-4 rounded-full flex items-center justify-center font-bold">
+                {itemCount}
+              </span>
+            )}
+          </div>
+        </button>
+      </div>
+
+      {/* Bottom overlays - Product card, checkout, and chat */}
+      <div className="absolute bottom-0 left-0 right-0 z-20 pointer-events-none flex flex-col">
+        {/* Product card - only shows when product is featured */}
+        {activeProduct?.product && (
+          <div className="px-3 pb-2 pointer-events-auto">
+            <MobileProductCard
+              product={activeProduct.product}
+              onAction={() => handleProductAction(activeProduct.product!)}
+              isLoading={cartLoading}
+              locale={locale}
+            />
+          </div>
+        )}
+
+        {/* Checkout bar when cart has items */}
+        {itemCount > 0 && (
+          <div className="px-3 pb-2 pointer-events-auto">
+            <button
+              onClick={handleCheckout}
+              className="w-full py-3 bg-pink-500 hover:bg-pink-600 active:bg-pink-700 text-white font-semibold rounded-full text-sm transition-colors flex items-center justify-center gap-2"
+            >
+              <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M16 11V7a4 4 0 00-8 0v4M5 9h14l1 12H4L5 9z" />
+              </svg>
+              {t.checkout} ({itemCount})
+            </button>
+          </div>
+        )}
+
+        {/* Chat overlay */}
+        <div className="pointer-events-auto">
           <Chat
             messages={messages}
             onSendMessage={handleSendMessage}
@@ -374,117 +445,41 @@ export default function BrandEmbedPage() {
             locale={locale}
           />
         </div>
+      </div>
 
-        {/* Name prompt modal */}
-        {showNamePrompt && (
-          <div className="absolute inset-0 bg-black/60 backdrop-blur-sm z-30 flex items-center justify-center p-4">
-            <form onSubmit={handleNameSubmit} className="bg-gray-900 rounded-2xl p-6 w-full max-w-sm">
-              <h3 className="text-white font-semibold text-lg mb-4">{t.enterName}</h3>
-              <input
-                type="text"
-                value={nameInput}
-                onChange={(e) => setNameInput(e.target.value)}
-                placeholder={t.yourName}
-                maxLength={30}
-                autoFocus
-                className="w-full bg-white/10 text-white placeholder-white/50 px-4 py-3 rounded-xl border border-white/20 focus:outline-none focus:ring-2 focus:ring-pink-500 mb-4"
-              />
-              <div className="flex gap-3">
-                <button
-                  type="button"
-                  onClick={() => setShowNamePrompt(false)}
-                  className="flex-1 py-3 bg-white/10 text-white rounded-xl font-medium"
-                >
-                  Cancel
-                </button>
-                <button
-                  type="submit"
-                  disabled={!nameInput.trim()}
-                  className="flex-1 py-3 bg-pink-500 text-white rounded-xl font-medium disabled:opacity-50"
-                >
-                  {t.join}
-                </button>
-              </div>
-            </form>
-          </div>
-        )}
-
-        {/* Top bar - Live badge and cart */}
-        <div className="absolute top-0 left-0 right-0 p-3 flex items-center justify-between z-20 pointer-events-none">
-          {/* Live badge */}
-          <div className="flex items-center gap-2 pointer-events-auto">
-            <div className="flex items-center gap-1.5 px-2 py-1 bg-red-500 rounded-lg">
-              <div className="w-2 h-2 bg-white rounded-full animate-pulse" />
-              <span className="text-white text-xs font-bold">{t.live}</span>
-            </div>
-            {viewerCount > 0 && (
-              <div className="flex items-center gap-1 px-2 py-1 bg-black/50 backdrop-blur-sm rounded-lg">
-                <svg className="w-3 h-3 text-white" fill="currentColor" viewBox="0 0 20 20">
-                  <path d="M10 12a2 2 0 100-4 2 2 0 000 4z" />
-                  <path fillRule="evenodd" d="M.458 10C1.732 5.943 5.522 3 10 3s8.268 2.943 9.542 7c-1.274 4.057-5.064 7-9.542 7S1.732 14.057.458 10zM14 10a4 4 0 11-8 0 4 4 0 018 0z" clipRule="evenodd" />
-                </svg>
-                <span className="text-white text-xs font-medium">{viewerCount}</span>
-              </div>
-            )}
-          </div>
-
-          {/* Cart button */}
-          <button
-            onClick={() => setIsCartOpen(true)}
-            className="p-2 bg-black/50 backdrop-blur-sm rounded-full pointer-events-auto"
-          >
-            <div className="relative">
-              <svg
-                className="w-5 h-5 text-white"
-                fill="none"
-                stroke="currentColor"
-                viewBox="0 0 24 24"
+      {/* Name prompt modal */}
+      {showNamePrompt && (
+        <div className="absolute inset-0 bg-black/60 backdrop-blur-sm z-30 flex items-center justify-center p-4">
+          <form onSubmit={handleNameSubmit} className="bg-gray-900 rounded-2xl p-6 w-full max-w-sm">
+            <h3 className="text-white font-semibold text-lg mb-4">{t.enterName}</h3>
+            <input
+              type="text"
+              value={nameInput}
+              onChange={(e) => setNameInput(e.target.value)}
+              placeholder={t.yourName}
+              maxLength={30}
+              autoFocus
+              className="w-full bg-white/10 text-white placeholder-white/50 px-4 py-3 rounded-xl border border-white/20 focus:outline-none focus:ring-2 focus:ring-pink-500 mb-4"
+            />
+            <div className="flex gap-3">
+              <button
+                type="button"
+                onClick={() => setShowNamePrompt(false)}
+                className="flex-1 py-3 bg-white/10 text-white rounded-xl font-medium"
               >
-                <path
-                  strokeLinecap="round"
-                  strokeLinejoin="round"
-                  strokeWidth={2}
-                  d="M16 11V7a4 4 0 00-8 0v4M5 9h14l1 12H4L5 9z"
-                />
-              </svg>
-              {itemCount > 0 && (
-                <span className="absolute -top-1.5 -right-1.5 bg-pink-500 text-white text-[10px] w-4 h-4 rounded-full flex items-center justify-center font-bold">
-                  {itemCount}
-                </span>
-              )}
+                Cancel
+              </button>
+              <button
+                type="submit"
+                disabled={!nameInput.trim()}
+                className="flex-1 py-3 bg-pink-500 text-white rounded-xl font-medium disabled:opacity-50"
+              >
+                {t.join}
+              </button>
             </div>
-          </button>
+          </form>
         </div>
-      </div>
-
-      {/* Bottom section - Product card (Instagram-style) */}
-      <div className="shrink-0 p-3 pb-safe">
-        {activeProduct?.product ? (
-          <MobileProductCard
-            product={activeProduct.product}
-            onAction={() => handleProductAction(activeProduct.product!)}
-            isLoading={cartLoading}
-            locale={locale}
-          />
-        ) : (
-          <div className="h-[88px] flex items-center justify-center text-white/30 text-sm">
-            {/* Empty state - host hasn't featured a product yet */}
-          </div>
-        )}
-
-        {/* Checkout bar when cart has items */}
-        {itemCount > 0 && (
-          <button
-            onClick={handleCheckout}
-            className="w-full mt-2 py-3 bg-pink-500 hover:bg-pink-600 active:bg-pink-700 text-white font-semibold rounded-full text-sm transition-colors flex items-center justify-center gap-2"
-          >
-            <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-              <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M16 11V7a4 4 0 00-8 0v4M5 9h14l1 12H4L5 9z" />
-            </svg>
-            {t.checkout} ({itemCount})
-          </button>
-        )}
-      </div>
+      )}
 
       {/* Cart drawer */}
       <CartDrawer

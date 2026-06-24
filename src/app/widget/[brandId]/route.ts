@@ -130,7 +130,7 @@ export async function GET(
     .ls-modal-controls {
       position: absolute;
       top: 12px;
-      right: 12px;
+      left: 12px;
       display: flex;
       gap: 8px;
       z-index: 10;
@@ -179,7 +179,7 @@ export async function GET(
     .ls-mini-controls {
       position: absolute;
       top: 8px;
-      right: 8px;
+      left: 8px;
       display: flex;
       gap: 6px;
       z-index: 10;
