@@ -190,6 +190,7 @@ export default function BrandEmbedPage() {
   const [viewerName, setViewerName] = useState<string | null>(null);
   const [showNamePrompt, setShowNamePrompt] = useState(false);
   const [nameInput, setNameInput] = useState('');
+  const [showShareToast, setShowShareToast] = useState(false);
 
   // Find current/next show for this brand
   const { show, isLoading: showLoading } = useBrandShow(brandId);
@@ -243,6 +244,36 @@ export default function BrandEmbedPage() {
     }
   }, [cart.checkoutUrl]);
 
+  // Handle share
+  const handleShare = useCallback(async () => {
+    const shareUrl = window.location.href.split('?')[0]; // Remove query params
+    const shareData = {
+      title: show?.title || 'Live Shopping',
+      text: 'Check out this live stream!',
+      url: shareUrl,
+    };
+
+    try {
+      if (navigator.share && navigator.canShare(shareData)) {
+        await navigator.share(shareData);
+      } else {
+        // Fallback: copy to clipboard
+        await navigator.clipboard.writeText(shareUrl);
+        setShowShareToast(true);
+        setTimeout(() => setShowShareToast(false), 2000);
+      }
+    } catch (err) {
+      // User cancelled or error - try clipboard
+      try {
+        await navigator.clipboard.writeText(shareUrl);
+        setShowShareToast(true);
+        setTimeout(() => setShowShareToast(false), 2000);
+      } catch {
+        console.error('Failed to share:', err);
+      }
+    }
+  }, [show?.title]);
+
   // Handle chat send
   const handleSendMessage = useCallback((message: string) => {
     if (viewerName) {
@@ -272,6 +303,7 @@ export default function BrandEmbedPage() {
       enterName: 'Enter your name to chat',
       yourName: 'Your name',
       join: 'Join',
+      linkCopied: 'Link copied!',
     },
     en: {
       loading: 'Loading...',
@@ -283,6 +315,7 @@ export default function BrandEmbedPage() {
       enterName: 'Enter your name to chat',
       yourName: 'Your name',
       join: 'Join',
+      linkCopied: 'Link copied!',
     },
   }[locale];
 
@@ -393,12 +426,13 @@ export default function BrandEmbedPage() {
           )}
         </div>
 
-        {/* Cart button */}
-        <button
-          onClick={() => setIsCartOpen(true)}
-          className="p-2 bg-black/50 backdrop-blur-sm rounded-full pointer-events-auto"
-        >
-          <div className="relative">
+        {/* Action buttons */}
+        <div className="flex items-center gap-2 pointer-events-auto">
+          {/* Share button */}
+          <button
+            onClick={handleShare}
+            className="p-2 bg-black/50 backdrop-blur-sm rounded-full"
+          >
             <svg
               className="w-5 h-5 text-white"
               fill="none"
@@ -409,17 +443,46 @@ export default function BrandEmbedPage() {
                 strokeLinecap="round"
                 strokeLinejoin="round"
                 strokeWidth={2}
-                d="M16 11V7a4 4 0 00-8 0v4M5 9h14l1 12H4L5 9z"
+                d="M8.684 13.342C8.886 12.938 9 12.482 9 12c0-.482-.114-.938-.316-1.342m0 2.684a3 3 0 110-2.684m0 2.684l6.632 3.316m-6.632-6l6.632-3.316m0 0a3 3 0 105.367-2.684 3 3 0 00-5.367 2.684zm0 9.316a3 3 0 105.368 2.684 3 3 0 00-5.368-2.684z"
               />
             </svg>
-            {itemCount > 0 && (
-              <span className="absolute -top-1.5 -right-1.5 bg-pink-500 text-white text-[10px] w-4 h-4 rounded-full flex items-center justify-center font-bold">
-                {itemCount}
-              </span>
-            )}
-          </div>
-        </button>
+          </button>
+
+          {/* Cart button */}
+          <button
+            onClick={() => setIsCartOpen(true)}
+            className="p-2 bg-black/50 backdrop-blur-sm rounded-full"
+          >
+            <div className="relative">
+              <svg
+                className="w-5 h-5 text-white"
+                fill="none"
+                stroke="currentColor"
+                viewBox="0 0 24 24"
+              >
+                <path
+                  strokeLinecap="round"
+                  strokeLinejoin="round"
+                  strokeWidth={2}
+                  d="M16 11V7a4 4 0 00-8 0v4M5 9h14l1 12H4L5 9z"
+                />
+              </svg>
+              {itemCount > 0 && (
+                <span className="absolute -top-1.5 -right-1.5 bg-pink-500 text-white text-[10px] w-4 h-4 rounded-full flex items-center justify-center font-bold">
+                  {itemCount}
+                </span>
+              )}
+            </div>
+          </button>
+        </div>
       </div>
+
+      {/* Share toast notification */}
+      {showShareToast && (
+        <div className="absolute top-16 left-1/2 -translate-x-1/2 z-30 px-4 py-2 bg-black/80 backdrop-blur-sm rounded-full">
+          <span className="text-white text-sm font-medium">{t.linkCopied}</span>
+        </div>
+      )}
 
       {/* Bottom overlays - Product card, checkout, and chat */}
       <div className="absolute bottom-0 left-0 right-0 z-20 pointer-events-none flex flex-col">
