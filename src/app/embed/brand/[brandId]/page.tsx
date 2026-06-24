@@ -387,14 +387,14 @@ export default function BrandEmbedPage() {
   }
 
   // Live state - Instagram-style mobile view
-  // In mini mode, show only the video (no overlays)
+  // In mini mode, show only the video with VideoPlayer's built-in overlay (LIVE + viewer count)
   if (isMiniMode) {
     return (
       <div className="fixed inset-0 bg-black">
         <VideoPlayer
           playbackId={show.cloudflare_playback_id}
           isLive={show.status === 'live'}
-          viewerCount={0}
+          viewerCount={viewerCount}
           locale={locale}
         />
       </div>
@@ -409,6 +409,7 @@ export default function BrandEmbedPage() {
         isLive={show.status === 'live'}
         viewerCount={viewerCount}
         locale={locale}
+        hideOverlay={true}
       />
 
       {/* Top bar - Viewer count and cart */}

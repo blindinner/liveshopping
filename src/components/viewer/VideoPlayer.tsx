@@ -7,6 +7,7 @@ interface VideoPlayerProps {
   isLive: boolean;
   viewerCount: number;
   locale: 'he' | 'en';
+  hideOverlay?: boolean;
 }
 
 export function VideoPlayer({
@@ -14,6 +15,7 @@ export function VideoPlayer({
   isLive,
   viewerCount,
   locale,
+  hideOverlay = false,
 }: VideoPlayerProps) {
   const t = {
     he: {
@@ -66,36 +68,38 @@ export function VideoPlayer({
         allowFullScreen
       />
 
-      {/* Overlays */}
-      <div className="absolute top-0 inset-x-0 p-4 bg-gradient-to-b from-black/50 to-transparent pointer-events-none">
-        <div className="flex items-center justify-between">
-          {/* Live badge */}
-          {isLive && (
-            <Badge variant="live" pulse>
-              {t.live}
-            </Badge>
-          )}
+      {/* Overlays - hidden when hideOverlay is true */}
+      {!hideOverlay && (
+        <div className="absolute top-0 inset-x-0 p-4 bg-gradient-to-b from-black/50 to-transparent pointer-events-none">
+          <div className="flex items-center justify-between">
+            {/* Live badge */}
+            {isLive && (
+              <Badge variant="live" pulse>
+                {t.live}
+              </Badge>
+            )}
 
-          {/* Viewer count */}
-          <div className="flex items-center gap-2 bg-black/40 backdrop-blur-sm px-3 py-1.5 rounded-full">
-            <svg
-              className="w-4 h-4 text-white"
-              fill="currentColor"
-              viewBox="0 0 20 20"
-            >
-              <path d="M10 12a2 2 0 100-4 2 2 0 000 4z" />
-              <path
-                fillRule="evenodd"
-                d="M.458 10C1.732 5.943 5.522 3 10 3s8.268 2.943 9.542 7c-1.274 4.057-5.064 7-9.542 7S1.732 14.057.458 10zM14 10a4 4 0 11-8 0 4 4 0 018 0z"
-                clipRule="evenodd"
-              />
-            </svg>
-            <span className="text-white text-sm font-medium">
-              {viewerCount.toLocaleString(locale === 'he' ? 'he-IL' : 'en-US')}
-            </span>
+            {/* Viewer count */}
+            <div className="flex items-center gap-2 bg-black/40 backdrop-blur-sm px-3 py-1.5 rounded-full">
+              <svg
+                className="w-4 h-4 text-white"
+                fill="currentColor"
+                viewBox="0 0 20 20"
+              >
+                <path d="M10 12a2 2 0 100-4 2 2 0 000 4z" />
+                <path
+                  fillRule="evenodd"
+                  d="M.458 10C1.732 5.943 5.522 3 10 3s8.268 2.943 9.542 7c-1.274 4.057-5.064 7-9.542 7S1.732 14.057.458 10zM14 10a4 4 0 11-8 0 4 4 0 018 0z"
+                  clipRule="evenodd"
+                />
+              </svg>
+              <span className="text-white text-sm font-medium">
+                {viewerCount.toLocaleString(locale === 'he' ? 'he-IL' : 'en-US')}
+              </span>
+            </div>
           </div>
         </div>
-      </div>
+      )}
     </div>
   );
 }
