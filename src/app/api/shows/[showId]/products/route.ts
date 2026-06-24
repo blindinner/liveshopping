@@ -44,6 +44,7 @@ export async function POST(
       return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
     }
 
+    const body = await request.json();
     const {
       shopifyProductId,
       shopifyVariantId,
@@ -52,30 +53,85 @@ export async function POST(
       currency,
       imageUrl,
       brandId,
-    } = await request.json();
+      source = 'shopify',
+      checkoutUrl,
+    } = body;
 
     // Use service client to insert product (may need to bypass RLS for cross-table operations)
     const serviceClient = createServiceClient();
 
-    // First, upsert the product
-    const { data: product, error: productError } = await serviceClient
-      .from('products')
-      .upsert(
-        {
+    // Handle manual vs Shopify products differently
+    let product;
+    let productError;
+
+    if (source === 'manual') {
+      // For manual products, always insert a new record
+      const result = await serviceClient
+        .from('products')
+        .insert({
           brand_id: brandId,
-          shopify_product_id: shopifyProductId,
-          shopify_variant_id: shopifyVariantId,
           title,
           price,
           currency,
           image_url: imageUrl,
-        },
-        {
-          onConflict: 'brand_id,shopify_variant_id',
-        }
-      )
-      .select()
-      .single();
+          source: 'manual',
+          checkout_url: checkoutUrl,
+          shopify_product_id: null,
+          shopify_variant_id: null,
+        })
+        .select()
+        .single();
+
+      product = result.data;
+      productError = result.error;
+    } else {
+      // For Shopify products, check if exists first then insert or update
+      // (partial unique index doesn't work with onConflict)
+      const { data: existingProduct } = await serviceClient
+        .from('products')
+        .select()
+        .eq('brand_id', brandId)
+        .eq('shopify_variant_id', shopifyVariantId)
+        .single();
+
+      if (existingProduct) {
+        // Update existing product
+        const result = await serviceClient
+          .from('products')
+          .update({
+            shopify_product_id: shopifyProductId,
+            title,
+            price,
+            currency,
+            image_url: imageUrl,
+          })
+          .eq('id', existingProduct.id)
+          .select()
+          .single();
+
+        product = result.data;
+        productError = result.error;
+      } else {
+        // Insert new product
+        const result = await serviceClient
+          .from('products')
+          .insert({
+            brand_id: brandId,
+            shopify_product_id: shopifyProductId,
+            shopify_variant_id: shopifyVariantId,
+            title,
+            price,
+            currency,
+            image_url: imageUrl,
+            source: 'shopify',
+          })
+          .select()
+          .single();
+
+        product = result.data;
+        productError = result.error;
+      }
+    }
 
     if (productError) {
       console.error('Product upsert error:', productError);

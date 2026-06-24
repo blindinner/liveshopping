@@ -10,6 +10,7 @@ interface ProductCardProps {
   onAddToCart: () => void;
   isLoading?: boolean;
   locale: 'he' | 'en';
+  onBuyNow?: (url: string) => void; // For manual products with checkout_url
 }
 
 export function ProductCard({
@@ -17,20 +18,36 @@ export function ProductCard({
   onAddToCart,
   isLoading = false,
   locale,
+  onBuyNow,
 }: ProductCardProps) {
   const [isExpanded, setIsExpanded] = useState(true);
   const isRTL = locale === 'he';
+  const isManualProduct = product.source === 'manual';
 
   const t = {
     he: {
       addToCart: 'הוסף',
+      buyNow: 'קנה עכשיו',
       featured: 'מוצר מומלץ',
     },
     en: {
       addToCart: 'Add',
+      buyNow: 'Buy Now',
       featured: 'Featured',
     },
   }[locale];
+
+  const handleAction = () => {
+    if (isManualProduct && product.checkout_url) {
+      if (onBuyNow) {
+        onBuyNow(product.checkout_url);
+      } else {
+        window.open(product.checkout_url, '_blank', 'noopener,noreferrer');
+      }
+    } else {
+      onAddToCart();
+    }
+  };
 
   const formatPrice = (price: number, currency: string) => {
     return new Intl.NumberFormat(locale === 'he' ? 'he-IL' : 'en-US', {
@@ -105,14 +122,14 @@ export function ProductCard({
               </p>
             </div>
 
-            {/* Add to cart button */}
+            {/* Action button */}
             <Button
-              onClick={onAddToCart}
+              onClick={handleAction}
               isLoading={isLoading}
               size="sm"
               className="w-full text-xs"
             >
-              {t.addToCart}
+              {isManualProduct ? t.buyNow : t.addToCart}
             </Button>
           </div>
         )}

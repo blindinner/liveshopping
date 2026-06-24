@@ -14,6 +14,22 @@ interface ShopifyProduct {
   available: boolean;
 }
 
+interface ManualProductForm {
+  title: string;
+  price: string;
+  currency: string;
+  imageUrl: string;
+  checkoutUrl: string;
+}
+
+const emptyManualProduct: ManualProductForm = {
+  title: '',
+  price: '',
+  currency: 'ILS',
+  imageUrl: '',
+  checkoutUrl: '',
+};
+
 interface ProductStagingProps {
   showId: string;
   brandId: string | null;
@@ -38,6 +54,11 @@ export function ProductStaging({
   const [isAdding, setIsAdding] = useState<string | null>(null);
   const [editingNotesId, setEditingNotesId] = useState<string | null>(null);
   const [notesValue, setNotesValue] = useState('');
+  const [showManualForm, setShowManualForm] = useState(false);
+  const [manualProduct, setManualProduct] = useState<ManualProductForm>(emptyManualProduct);
+  const [isAddingManual, setIsAddingManual] = useState(false);
+  const [isUploadingCsv, setIsUploadingCsv] = useState(false);
+  const [csvError, setCsvError] = useState<string | null>(null);
 
   // Load all products from store on mount
   useEffect(() => {
@@ -183,6 +204,154 @@ export function ProductStaging({
     setNotesValue('');
   };
 
+  // Add manual product
+  const addManualProduct = async () => {
+    if (!brandId || !manualProduct.title || !manualProduct.price) return;
+    setIsAddingManual(true);
+
+    try {
+      const response = await fetch(`/api/shows/${showId}/products`, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          title: manualProduct.title,
+          price: parseFloat(manualProduct.price),
+          currency: manualProduct.currency,
+          imageUrl: manualProduct.imageUrl || null,
+          checkoutUrl: manualProduct.checkoutUrl || null,
+          brandId,
+          source: 'manual',
+          displayOrder: showProducts.length,
+        }),
+      });
+
+      if (response.ok) {
+        const { showProduct } = await response.json();
+        onProductsChange([...showProducts, showProduct]);
+        setManualProduct(emptyManualProduct);
+        setShowManualForm(false);
+      }
+    } catch (error) {
+      console.error('Failed to add manual product:', error);
+    } finally {
+      setIsAddingManual(false);
+    }
+  };
+
+  // Parse and upload CSV
+  const handleCsvUpload = async (event: React.ChangeEvent<HTMLInputElement>) => {
+    const file = event.target.files?.[0];
+    if (!file || !brandId) return;
+
+    setIsUploadingCsv(true);
+    setCsvError(null);
+
+    try {
+      const text = await file.text();
+      const lines = text.split('\n').filter(line => line.trim());
+
+      if (lines.length < 2) {
+        setCsvError('CSV must have a header row and at least one product');
+        return;
+      }
+
+      // Parse header to find column indices
+      const header = lines[0].split(',').map(h => h.trim().toLowerCase());
+      const titleIdx = header.findIndex(h => h === 'title' || h === 'name' || h === 'product');
+      const priceIdx = header.findIndex(h => h === 'price');
+      const currencyIdx = header.findIndex(h => h === 'currency');
+      const imageIdx = header.findIndex(h => h === 'image' || h === 'image_url' || h === 'imageurl');
+      const checkoutIdx = header.findIndex(h => h === 'checkout' || h === 'checkout_url' || h === 'checkouturl' || h === 'url' || h === 'link');
+
+      if (titleIdx === -1 || priceIdx === -1) {
+        setCsvError('CSV must have "title" and "price" columns');
+        return;
+      }
+
+      // Parse rows
+      const products: ManualProductForm[] = [];
+      for (let i = 1; i < lines.length; i++) {
+        const values = parseCSVLine(lines[i]);
+        if (values.length <= Math.max(titleIdx, priceIdx)) continue;
+
+        const title = values[titleIdx]?.trim();
+        const price = values[priceIdx]?.trim();
+
+        if (!title || !price) continue;
+
+        products.push({
+          title,
+          price,
+          currency: currencyIdx !== -1 ? values[currencyIdx]?.trim() || 'ILS' : 'ILS',
+          imageUrl: imageIdx !== -1 ? values[imageIdx]?.trim() || '' : '',
+          checkoutUrl: checkoutIdx !== -1 ? values[checkoutIdx]?.trim() || '' : '',
+        });
+      }
+
+      if (products.length === 0) {
+        setCsvError('No valid products found in CSV');
+        return;
+      }
+
+      // Add products one by one
+      const newProducts: typeof showProducts = [];
+      for (const product of products) {
+        const response = await fetch(`/api/shows/${showId}/products`, {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({
+            title: product.title,
+            price: parseFloat(product.price),
+            currency: product.currency,
+            imageUrl: product.imageUrl || null,
+            checkoutUrl: product.checkoutUrl || null,
+            brandId,
+            source: 'manual',
+            displayOrder: showProducts.length + newProducts.length,
+          }),
+        });
+
+        if (response.ok) {
+          const { showProduct } = await response.json();
+          newProducts.push(showProduct);
+        }
+      }
+
+      if (newProducts.length > 0) {
+        onProductsChange([...showProducts, ...newProducts]);
+      }
+
+      // Reset file input
+      event.target.value = '';
+    } catch (error) {
+      console.error('Failed to parse CSV:', error);
+      setCsvError('Failed to parse CSV file');
+    } finally {
+      setIsUploadingCsv(false);
+    }
+  };
+
+  // Helper to parse CSV line (handles quoted values with commas)
+  const parseCSVLine = (line: string): string[] => {
+    const result: string[] = [];
+    let current = '';
+    let inQuotes = false;
+
+    for (let i = 0; i < line.length; i++) {
+      const char = line[i];
+      if (char === '"') {
+        inQuotes = !inQuotes;
+      } else if (char === ',' && !inQuotes) {
+        result.push(current);
+        current = '';
+      } else {
+        current += char;
+      }
+    }
+    result.push(current);
+    return result;
+  };
+
   return (
     <div className="space-y-6">
       {/* Shortlisted Products - Show Queue */}
@@ -277,9 +446,16 @@ export function ProductStaging({
                     </div>
 
                     <div className="flex-1 min-w-0">
-                      <p className="text-white text-sm font-medium truncate">
-                        {sp.product?.title}
-                      </p>
+                      <div className="flex items-center gap-1.5">
+                        <p className="text-white text-sm font-medium truncate">
+                          {sp.product?.title}
+                        </p>
+                        {sp.product?.source === 'manual' && (
+                          <span className="shrink-0 px-1.5 py-0.5 bg-purple-500/20 text-purple-300 text-[10px] font-medium rounded">
+                            Manual
+                          </span>
+                        )}
+                      </div>
                       <p className="text-white/60 text-xs">
                         {sp.product?.currency} {sp.product?.price}
                       </p>
@@ -348,6 +524,156 @@ export function ProductStaging({
                 </div>
               );
             })}
+          </div>
+        )}
+      </section>
+
+      {/* Add Manual Product */}
+      <section className="bg-white/5 rounded-2xl p-4">
+        <div className="flex items-center justify-between mb-4">
+          <div>
+            <h2 className="text-base font-semibold text-white">Manual Products</h2>
+            <p className="text-white/50 text-xs mt-0.5">
+              Add products not from your Shopify store
+            </p>
+          </div>
+          <div className="flex items-center gap-2">
+            <label className="px-3 py-1.5 bg-white/10 hover:bg-white/20 text-white text-sm rounded-lg transition-colors flex items-center gap-1.5 cursor-pointer">
+              <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M4 16v1a3 3 0 003 3h10a3 3 0 003-3v-1m-4-8l-4-4m0 0L8 8m4-4v12" />
+              </svg>
+              {isUploadingCsv ? 'Uploading...' : 'Upload CSV'}
+              <input
+                type="file"
+                accept=".csv"
+                onChange={handleCsvUpload}
+                disabled={isUploadingCsv}
+                className="hidden"
+              />
+            </label>
+            <button
+              onClick={() => setShowManualForm(!showManualForm)}
+              className="px-3 py-1.5 bg-white/10 hover:bg-white/20 text-white text-sm rounded-lg transition-colors flex items-center gap-1.5"
+            >
+              <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 6v6m0 0v6m0-6h6m-6 0H6" />
+              </svg>
+              {showManualForm ? 'Cancel' : 'Add One'}
+            </button>
+          </div>
+        </div>
+
+        {csvError && (
+          <div className="mb-4 p-3 bg-red-500/20 border border-red-500/30 rounded-lg text-red-300 text-sm">
+            {csvError}
+          </div>
+        )}
+
+        <div className="mb-4 p-3 bg-white/5 rounded-lg text-white/50 text-xs flex items-center justify-between">
+          <div>
+            <p className="font-medium text-white/70 mb-1">CSV Format:</p>
+            <code className="text-pink-300">title,price,currency,image_url,checkout_url</code>
+            <p className="mt-1">Required: title, price. Optional: currency (default: ILS), image_url, checkout_url</p>
+          </div>
+          <button
+            onClick={() => {
+              const template = 'title,price,currency,image_url,checkout_url\nExample Product,99.99,ILS,https://example.com/image.jpg,https://example.com/buy\n';
+              const blob = new Blob([template], { type: 'text/csv' });
+              const url = URL.createObjectURL(blob);
+              const a = document.createElement('a');
+              a.href = url;
+              a.download = 'products_template.csv';
+              a.click();
+              URL.revokeObjectURL(url);
+            }}
+            className="px-3 py-1.5 bg-pink-500/20 hover:bg-pink-500/30 text-pink-300 text-xs rounded-lg transition-colors flex items-center gap-1.5 shrink-0"
+          >
+            <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+              <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M4 16v1a3 3 0 003 3h10a3 3 0 003-3v-1m-4-4l-4 4m0 0l-4-4m4 4V4" />
+            </svg>
+            Download Template
+          </button>
+        </div>
+
+        {showManualForm && (
+          <div className="space-y-4">
+            <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
+              <div>
+                <label className="block text-white/70 text-xs mb-1">Product Name *</label>
+                <input
+                  type="text"
+                  value={manualProduct.title}
+                  onChange={(e) => setManualProduct({ ...manualProduct, title: e.target.value })}
+                  placeholder="Enter product name"
+                  className="w-full bg-black/30 text-white text-sm rounded-lg px-3 py-2 focus:outline-none focus:ring-1 focus:ring-pink-500/50 placeholder:text-white/30 border border-white/10"
+                />
+              </div>
+              <div className="flex gap-2">
+                <div className="flex-1">
+                  <label className="block text-white/70 text-xs mb-1">Price *</label>
+                  <input
+                    type="number"
+                    step="0.01"
+                    value={manualProduct.price}
+                    onChange={(e) => setManualProduct({ ...manualProduct, price: e.target.value })}
+                    placeholder="0.00"
+                    className="w-full bg-black/30 text-white text-sm rounded-lg px-3 py-2 focus:outline-none focus:ring-1 focus:ring-pink-500/50 placeholder:text-white/30 border border-white/10"
+                  />
+                </div>
+                <div className="w-20">
+                  <label className="block text-white/70 text-xs mb-1">Currency</label>
+                  <select
+                    value={manualProduct.currency}
+                    onChange={(e) => setManualProduct({ ...manualProduct, currency: e.target.value })}
+                    className="w-full bg-black/30 text-white text-sm rounded-lg px-2 py-2 focus:outline-none focus:ring-1 focus:ring-pink-500/50 border border-white/10"
+                  >
+                    <option value="ILS">ILS</option>
+                    <option value="USD">USD</option>
+                    <option value="EUR">EUR</option>
+                  </select>
+                </div>
+              </div>
+            </div>
+
+            <div>
+              <label className="block text-white/70 text-xs mb-1">Image URL</label>
+              <input
+                type="url"
+                value={manualProduct.imageUrl}
+                onChange={(e) => setManualProduct({ ...manualProduct, imageUrl: e.target.value })}
+                placeholder="https://example.com/image.jpg"
+                className="w-full bg-black/30 text-white text-sm rounded-lg px-3 py-2 focus:outline-none focus:ring-1 focus:ring-pink-500/50 placeholder:text-white/30 border border-white/10"
+              />
+            </div>
+
+            <div>
+              <label className="block text-white/70 text-xs mb-1">Checkout URL</label>
+              <input
+                type="url"
+                value={manualProduct.checkoutUrl}
+                onChange={(e) => setManualProduct({ ...manualProduct, checkoutUrl: e.target.value })}
+                placeholder="https://example.com/buy"
+                className="w-full bg-black/30 text-white text-sm rounded-lg px-3 py-2 focus:outline-none focus:ring-1 focus:ring-pink-500/50 placeholder:text-white/30 border border-white/10"
+              />
+              <p className="text-white/40 text-xs mt-1">External link where viewers can purchase this product</p>
+            </div>
+
+            <div className="flex justify-end">
+              <button
+                onClick={addManualProduct}
+                disabled={!manualProduct.title || !manualProduct.price || isAddingManual}
+                className="px-4 py-2 bg-pink-500 hover:bg-pink-600 disabled:opacity-50 disabled:cursor-not-allowed text-white text-sm rounded-lg transition-colors flex items-center gap-2"
+              >
+                {isAddingManual ? (
+                  <>
+                    <div className="animate-spin w-4 h-4 border-2 border-white border-t-transparent rounded-full" />
+                    Adding...
+                  </>
+                ) : (
+                  'Add to Queue'
+                )}
+              </button>
+            </div>
           </div>
         )}
       </section>

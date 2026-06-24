@@ -30,15 +30,19 @@ export interface Show {
   updated_at: string;
 }
 
+export type ProductSource = 'shopify' | 'manual';
+
 export interface Product {
   id: string;
   brand_id: string;
-  shopify_product_id: string;
-  shopify_variant_id: string;
+  shopify_product_id: string | null;
+  shopify_variant_id: string | null;
   title: string;
   price: number;
   currency: string;
   image_url: string | null;
+  source: ProductSource;
+  checkout_url: string | null; // External URL for manual products
   created_at: string;
   updated_at: string;
 }
