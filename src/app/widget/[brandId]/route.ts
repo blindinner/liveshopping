@@ -304,7 +304,7 @@ export async function GET(
         <iframe
           class="ls-modal-iframe"
           src="\${BASE_URL}/embed/brand/\${BRAND_ID}?locale=en"
-          allow="autoplay; fullscreen"
+          allow="autoplay; fullscreen; web-share"
         ></iframe>
       </div>
     \`;
@@ -353,7 +353,7 @@ export async function GET(
       <iframe
         class="ls-mini-iframe"
         src="\${BASE_URL}/embed/brand/\${BRAND_ID}?locale=en&mode=mini"
-        allow="autoplay; fullscreen"
+        allow="autoplay; fullscreen; web-share"
       ></iframe>
     \`;
 
