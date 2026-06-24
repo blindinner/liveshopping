@@ -337,10 +337,6 @@ export async function GET(
     miniElement = document.createElement('div');
     miniElement.className = 'ls-mini';
     miniElement.innerHTML = \`
-      <div class="ls-mini-live">
-        <div class="ls-mini-live-dot"></div>
-        <span class="ls-mini-live-text">\${t.live}</span>
-      </div>
       <div class="ls-mini-controls">
         <button class="ls-mini-btn ls-maximize-btn" aria-label="\${t.maximize}">
           <svg fill="none" stroke="currentColor" viewBox="0 0 24 24">

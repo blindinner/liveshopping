@@ -5,9 +5,11 @@ import Image from 'next/image';
 import { VideoPlayer } from '@/components/viewer/VideoPlayer';
 import { CartDrawer } from '@/components/viewer/CartDrawer';
 import { Countdown } from '@/components/viewer/Countdown';
+import { Chat } from '@/components/viewer/Chat';
 import {
   useShowProducts,
   useViewerPresence,
+  useChatMessages,
 } from '@/hooks/useRealtime';
 import { useCart } from '@/hooks/useCart';
 import type { Product, Show } from '@/types/database';
@@ -184,6 +186,9 @@ export default function BrandEmbedPage() {
   // Generate viewer ID (persisted in memory for the session)
   const [viewerId] = useState(() => `embed-${Date.now()}-${Math.random().toString(36).slice(2)}`);
   const [isCartOpen, setIsCartOpen] = useState(false);
+  const [viewerName, setViewerName] = useState<string | null>(null);
+  const [showNamePrompt, setShowNamePrompt] = useState(false);
+  const [nameInput, setNameInput] = useState('');
 
   // Find current/next show for this brand
   const { show, isLoading: showLoading } = useBrandShow(brandId);
@@ -191,6 +196,7 @@ export default function BrandEmbedPage() {
   // Real-time hooks (only active when we have a show)
   const { activeProduct } = useShowProducts(show?.id || '');
   const { viewerCount } = useViewerPresence(show?.id || '', show ? viewerId : '');
+  const { messages, sendMessage } = useChatMessages(show?.id || '', viewerId);
 
   // Cart hook
   const {
@@ -236,6 +242,23 @@ export default function BrandEmbedPage() {
     }
   }, [cart.checkoutUrl]);
 
+  // Handle chat send
+  const handleSendMessage = useCallback((message: string) => {
+    if (viewerName) {
+      sendMessage(viewerName, message);
+    }
+  }, [viewerName, sendMessage]);
+
+  // Handle name submission
+  const handleNameSubmit = (e: React.FormEvent) => {
+    e.preventDefault();
+    if (nameInput.trim()) {
+      setViewerName(nameInput.trim());
+      setShowNamePrompt(false);
+      setNameInput('');
+    }
+  };
+
   // Translations
   const t = {
     he: {
@@ -245,6 +268,9 @@ export default function BrandEmbedPage() {
       live: 'לייב',
       noShows: 'אין שידורים קרובים',
       stayTuned: 'עקבו אחרינו לעדכונים',
+      enterName: 'Enter your name to chat',
+      yourName: 'Your name',
+      join: 'Join',
     },
     en: {
       loading: 'Loading...',
@@ -253,6 +279,9 @@ export default function BrandEmbedPage() {
       live: 'LIVE',
       noShows: 'No upcoming shows',
       stayTuned: 'Stay tuned for updates',
+      enterName: 'Enter your name to chat',
+      yourName: 'Your name',
+      join: 'Join',
     },
   }[locale];
 
@@ -327,13 +356,58 @@ export default function BrandEmbedPage() {
   return (
     <div className="fixed inset-0 bg-black flex flex-col">
       {/* Video Player (fills available space) */}
-      <div className="flex-1 relative min-h-0">
+      <div className="flex-1 relative min-h-0 overflow-hidden">
         <VideoPlayer
           playbackId={show.cloudflare_playback_id}
           isLive={show.status === 'live'}
           viewerCount={viewerCount}
           locale={locale}
         />
+
+        {/* Chat overlay on video */}
+        <div className="absolute bottom-0 left-0 right-0 z-20 pointer-events-auto">
+          <Chat
+            messages={messages}
+            onSendMessage={handleSendMessage}
+            viewerName={viewerName}
+            onRequestName={() => setShowNamePrompt(true)}
+            locale={locale}
+          />
+        </div>
+
+        {/* Name prompt modal */}
+        {showNamePrompt && (
+          <div className="absolute inset-0 bg-black/60 backdrop-blur-sm z-30 flex items-center justify-center p-4">
+            <form onSubmit={handleNameSubmit} className="bg-gray-900 rounded-2xl p-6 w-full max-w-sm">
+              <h3 className="text-white font-semibold text-lg mb-4">{t.enterName}</h3>
+              <input
+                type="text"
+                value={nameInput}
+                onChange={(e) => setNameInput(e.target.value)}
+                placeholder={t.yourName}
+                maxLength={30}
+                autoFocus
+                className="w-full bg-white/10 text-white placeholder-white/50 px-4 py-3 rounded-xl border border-white/20 focus:outline-none focus:ring-2 focus:ring-pink-500 mb-4"
+              />
+              <div className="flex gap-3">
+                <button
+                  type="button"
+                  onClick={() => setShowNamePrompt(false)}
+                  className="flex-1 py-3 bg-white/10 text-white rounded-xl font-medium"
+                >
+                  Cancel
+                </button>
+                <button
+                  type="submit"
+                  disabled={!nameInput.trim()}
+                  className="flex-1 py-3 bg-pink-500 text-white rounded-xl font-medium disabled:opacity-50"
+                >
+                  {t.join}
+                </button>
+              </div>
+            </form>
+          </div>
+        )}
 
         {/* Top bar - Live badge and cart */}
         <div className="absolute top-0 left-0 right-0 p-3 flex items-center justify-between z-20 pointer-events-none">
