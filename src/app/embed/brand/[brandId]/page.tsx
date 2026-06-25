@@ -4,6 +4,7 @@ import { useEffect, useState, useCallback } from 'react';
 import Image from 'next/image';
 import { VideoPlayer } from '@/components/viewer/VideoPlayer';
 import { CartDrawer } from '@/components/viewer/CartDrawer';
+import { PollCard } from '@/components/viewer/PollCard';
 import { Countdown } from '@/components/viewer/Countdown';
 import { Chat } from '@/components/viewer/Chat';
 import {
@@ -12,6 +13,7 @@ import {
   useChatMessages,
 } from '@/hooks/useRealtime';
 import { useCart } from '@/hooks/useCart';
+import { useActivePoll } from '@/hooks/usePolls';
 import type { Product, Show } from '@/types/database';
 import { useParams, useSearchParams } from 'next/navigation';
 import { createClient } from '@/lib/supabase/client';
@@ -199,6 +201,7 @@ export default function BrandEmbedPage() {
   const { activeProduct } = useShowProducts(show?.id || '');
   const { viewerCount } = useViewerPresence(show?.id || '', show ? viewerId : '');
   const { messages, sendMessage } = useChatMessages(show?.id || '', viewerId);
+  const { activePoll, hasVoted, submitVote } = useActivePoll(show?.id || '', viewerId);
 
   // Cart hook
   const {
@@ -480,6 +483,16 @@ export default function BrandEmbedPage() {
         <div className="absolute top-16 left-1/2 -translate-x-1/2 z-30 px-4 py-2 bg-black/80 backdrop-blur-sm rounded-full">
           <span className="text-white text-sm font-medium">{t.linkCopied}</span>
         </div>
+      )}
+
+      {/* Active poll */}
+      {activePoll && (
+        <PollCard
+          poll={activePoll}
+          hasVoted={hasVoted}
+          onVote={submitVote}
+          locale={locale}
+        />
       )}
 
       {/* Bottom overlays - Product card, checkout, and chat */}
