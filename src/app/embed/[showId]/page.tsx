@@ -287,16 +287,17 @@ export default function EmbedLiveViewerPage() {
           </button>
         </div>
 
-        {/* Active poll */}
-        {activePoll && (
-          <PollCard
-            poll={activePoll}
-            hasVoted={hasVoted}
-            onVote={submitVote}
-            locale={locale}
-          />
-        )}
       </div>
+
+      {/* Active poll */}
+      {activePoll && (
+        <PollCard
+          poll={activePoll}
+          hasVoted={hasVoted}
+          onVote={submitVote}
+          locale={locale}
+        />
+      )}
 
       {/* Bottom section - Product card (Instagram-style) */}
       <div className="shrink-0 p-3 pb-safe">
