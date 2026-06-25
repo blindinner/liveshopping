@@ -51,14 +51,12 @@ export function PollCard({ poll, hasVoted, onVote, locale }: PollCardProps) {
 
   return (
     <div
-      className={`absolute bottom-32 z-40 pointer-events-auto w-[calc(100%-1.5rem)] max-w-72 ${
-        isRTL ? 'left-3' : 'right-3'
-      }`}
+      className="absolute bottom-32 left-3 right-3 z-40 pointer-events-auto"
       dir={isRTL ? 'rtl' : 'ltr'}
     >
-      <div className="bg-black/70 backdrop-blur-lg rounded-2xl border border-white/20 overflow-hidden animate-in slide-in-from-bottom-4 duration-300">
+      <div className="bg-black/40 backdrop-blur-md rounded-2xl border border-white/10 overflow-hidden animate-in slide-in-from-bottom-4 duration-300">
         {/* Header */}
-        <div className="px-4 py-2.5 bg-purple-500/20 border-b border-white/10 flex items-center justify-between">
+        <div className="px-4 py-2.5 bg-purple-500/10 border-b border-white/5 flex items-center justify-between">
           <div className="flex items-center gap-2">
             <svg
               className="w-4 h-4 text-purple-400"
@@ -112,15 +110,15 @@ export function PollCard({ poll, hasVoted, onVote, locale }: PollCardProps) {
                     : 'cursor-pointer hover:scale-[1.02] active:scale-[0.98]'
                 } ${
                   isSelected
-                    ? 'ring-2 ring-purple-500'
-                    : 'ring-1 ring-white/20'
+                    ? 'ring-2 ring-purple-500/70'
+                    : 'ring-1 ring-white/10'
                 }`}
               >
                 {/* Background bar for results */}
                 {showResults && (
                   <div
                     className={`absolute inset-0 transition-all duration-500 ${
-                      isWinning ? 'bg-purple-500/30' : 'bg-white/10'
+                      isWinning ? 'bg-purple-500/20' : 'bg-white/5'
                     }`}
                     style={{ width: `${percentage}%` }}
                   />
@@ -177,7 +175,7 @@ export function PollCard({ poll, hasVoted, onVote, locale }: PollCardProps) {
 
         {/* Footer - voting status */}
         {hasVoted && (
-          <div className="px-4 py-2 bg-purple-500/10 border-t border-white/10">
+          <div className="px-4 py-2 bg-purple-500/5 border-t border-white/5">
             <div className="flex items-center justify-center gap-1.5 text-purple-400 text-xs">
               <svg
                 className="w-3.5 h-3.5"
