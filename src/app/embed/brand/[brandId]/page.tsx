@@ -4,7 +4,7 @@ import { useEffect, useState, useCallback } from 'react';
 import Image from 'next/image';
 import { VideoPlayer } from '@/components/viewer/VideoPlayer';
 import { CartDrawer } from '@/components/viewer/CartDrawer';
-import { PollCard, PollButton } from '@/components/viewer/PollCard';
+import { PollView, PollButton } from '@/components/viewer/PollCard';
 import { Countdown } from '@/components/viewer/Countdown';
 import { Chat } from '@/components/viewer/Chat';
 import {
@@ -494,14 +494,23 @@ export default function BrandEmbedPage() {
         </div>
       )}
 
-      {/* Poll modal */}
+      {/* Poll full-screen view */}
       {activePoll && isPollOpen && (
-        <PollCard
+        <PollView
           poll={activePoll}
           hasVoted={hasVoted}
           onVote={submitVote}
-          onClose={() => setIsPollOpen(false)}
+          onCollapse={() => setIsPollOpen(false)}
           locale={locale}
+          videoElement={
+            <VideoPlayer
+              playbackId={show.cloudflare_playback_id}
+              isLive={show.status === 'live'}
+              viewerCount={viewerCount}
+              locale={locale}
+              hideOverlay={true}
+            />
+          }
         />
       )}
 

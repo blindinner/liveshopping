@@ -5,7 +5,7 @@ import { VideoPlayer } from '@/components/viewer/VideoPlayer';
 import { Chat } from '@/components/viewer/Chat';
 import { Reactions } from '@/components/viewer/Reactions';
 import { ProductCard } from '@/components/viewer/ProductCard';
-import { PollCard, PollButton } from '@/components/viewer/PollCard';
+import { PollView, PollButton } from '@/components/viewer/PollCard';
 import { CartDrawer } from '@/components/viewer/CartDrawer';
 import { CheckoutBar } from '@/components/viewer/CheckoutBar';
 // TODO: Re-enable lead capture form after testing
@@ -183,14 +183,22 @@ export default function LiveViewerPage() {
         />
       )}
 
-      {/* Poll modal */}
+      {/* Poll full-screen view */}
       {activePoll && isPollOpen && (
-        <PollCard
+        <PollView
           poll={activePoll}
           hasVoted={hasVoted}
           onVote={submitVote}
-          onClose={() => setIsPollOpen(false)}
+          onCollapse={() => setIsPollOpen(false)}
           locale={locale}
+          videoElement={
+            <VideoPlayer
+              playbackId={show.cloudflare_playback_id}
+              isLive={show.status === 'live'}
+              viewerCount={viewerCount}
+              locale={locale}
+            />
+          }
         />
       )}
 
