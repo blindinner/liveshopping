@@ -184,7 +184,18 @@ export function usePollManagement(showId: string) {
 
     initialLoad();
 
-    // Subscribe to poll changes
+    // Reload function for subscriptions
+    async function reloadPolls() {
+      try {
+        const response = await fetch(`/api/shows/${showId}/polls`);
+        const data = await response.json();
+        setPolls(data.polls || []);
+      } catch (error) {
+        console.error('Failed to reload polls:', error);
+      }
+    }
+
+    // Subscribe to poll changes and vote changes
     const channel = supabase
       .channel(`polls-manage:${showId}`)
       .on(
@@ -195,16 +206,16 @@ export function usePollManagement(showId: string) {
           table: 'polls',
           filter: `show_id=eq.${showId}`,
         },
-        async () => {
-          // Reload polls on change
-          try {
-            const response = await fetch(`/api/shows/${showId}/polls`);
-            const data = await response.json();
-            setPolls(data.polls || []);
-          } catch (error) {
-            console.error('Failed to reload polls:', error);
-          }
-        }
+        () => reloadPolls()
+      )
+      .on(
+        'postgres_changes',
+        {
+          event: 'INSERT',
+          schema: 'public',
+          table: 'poll_votes',
+        },
+        () => reloadPolls()
       )
       .subscribe();
 

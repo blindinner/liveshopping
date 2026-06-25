@@ -51,7 +51,7 @@ export function PollCard({ poll, hasVoted, onVote, locale }: PollCardProps) {
 
   return (
     <div
-      className={`absolute bottom-32 z-40 pointer-events-auto w-72 ${
+      className={`absolute bottom-32 z-40 pointer-events-auto w-[calc(100%-1.5rem)] max-w-72 ${
         isRTL ? 'left-3' : 'right-3'
       }`}
       dir={isRTL ? 'rtl' : 'ltr'}
