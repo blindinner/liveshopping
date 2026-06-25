@@ -289,30 +289,27 @@ export default function EmbedLiveViewerPage() {
 
       </div>
 
-      {/* Active poll */}
-      {activePoll && (
-        <PollCard
-          poll={activePoll}
-          hasVoted={hasVoted}
-          onVote={submitVote}
-          locale={locale}
-        />
-      )}
+      {/* Bottom section - Poll and Product card (Instagram-style) */}
+      <div className="shrink-0 p-3 pb-safe space-y-2">
+        {/* Poll - stacks above product */}
+        {activePoll && (
+          <PollCard
+            poll={activePoll}
+            hasVoted={hasVoted}
+            onVote={submitVote}
+            locale={locale}
+            inline
+          />
+        )}
 
-      {/* Bottom section - Product card (Instagram-style) */}
-      <div className="shrink-0 p-3 pb-safe">
-        {activeProduct?.product ? (
+        {/* Product card */}
+        {activeProduct?.product && (
           <MobileProductCard
             product={activeProduct.product}
             onAction={() => handleProductAction(activeProduct.product!)}
             isLoading={cartLoading}
             locale={locale}
           />
-        ) : (
-          // Placeholder when no product is featured
-          <div className="h-[88px] flex items-center justify-center text-white/30 text-sm">
-            {/* Empty state - host hasn't featured a product yet */}
-          </div>
         )}
 
         {/* Checkout bar when cart has items */}

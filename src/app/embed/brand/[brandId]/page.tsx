@@ -485,18 +485,21 @@ export default function BrandEmbedPage() {
         </div>
       )}
 
-      {/* Active poll */}
-      {activePoll && (
-        <PollCard
-          poll={activePoll}
-          hasVoted={hasVoted}
-          onVote={submitVote}
-          locale={locale}
-        />
-      )}
-
-      {/* Bottom overlays - Product card, checkout, and chat */}
+      {/* Bottom overlays - Poll, Product card, checkout, and chat */}
       <div className="absolute bottom-0 left-0 right-0 z-20 pointer-events-none flex flex-col">
+        {/* Poll - stacks above product */}
+        {activePoll && (
+          <div className="px-3 pb-2 pointer-events-auto">
+            <PollCard
+              poll={activePoll}
+              hasVoted={hasVoted}
+              onVote={submitVote}
+              locale={locale}
+              inline
+            />
+          </div>
+        )}
+
         {/* Product card - only shows when product is featured */}
         {activeProduct?.product && (
           <div className="px-3 pb-2 pointer-events-auto">

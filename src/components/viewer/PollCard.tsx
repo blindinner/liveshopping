@@ -8,9 +8,10 @@ interface PollCardProps {
   hasVoted: boolean;
   onVote: (optionId: string) => Promise<void>;
   locale: 'he' | 'en';
+  inline?: boolean; // When true, no absolute positioning - used for stacking layouts
 }
 
-export function PollCard({ poll, hasVoted, onVote, locale }: PollCardProps) {
+export function PollCard({ poll, hasVoted, onVote, locale, inline = false }: PollCardProps) {
   const [isVoting, setIsVoting] = useState(false);
   const [selectedOption, setSelectedOption] = useState<string | null>(null);
   const isRTL = locale === 'he';
@@ -51,7 +52,10 @@ export function PollCard({ poll, hasVoted, onVote, locale }: PollCardProps) {
 
   return (
     <div
-      className="absolute bottom-32 left-3 right-3 z-40 pointer-events-auto"
+      className={inline
+        ? "pointer-events-auto"
+        : "absolute bottom-32 left-3 right-3 z-40 pointer-events-auto"
+      }
       dir={isRTL ? 'rtl' : 'ltr'}
     >
       <div className="bg-black/40 backdrop-blur-md rounded-2xl border border-white/10 overflow-hidden animate-in slide-in-from-bottom-4 duration-300">
