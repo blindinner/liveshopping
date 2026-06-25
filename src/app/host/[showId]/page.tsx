@@ -8,6 +8,7 @@ import { MetricsDashboard } from '@/components/host/MetricsDashboard';
 import { ProductStaging } from '@/components/host/ProductStaging';
 import { BroadcastPanel } from '@/components/host/BroadcastPanel';
 import { HostNotes } from '@/components/host/HostNotes';
+import { PollManager } from '@/components/host/PollManager';
 import { useChatMessages, useShowStatus, useViewerPresence } from '@/hooks/useRealtime';
 import { createClient } from '@/lib/supabase/client';
 import type { Show, ShowProduct, ChatMessage } from '@/types/database';
@@ -216,11 +217,14 @@ export default function HostControlPanel() {
     </div>
   );
 
-  // Right column: Analytics and Products
+  // Right column: Analytics, Polls, and Products
   const rightColumn = (
     <>
       {/* Metrics Dashboard */}
       <MetricsDashboard showId={showId} viewerCount={viewerCount} />
+
+      {/* Poll Manager */}
+      <PollManager showId={showId} />
 
       {/* Product Staging */}
       <ProductStaging

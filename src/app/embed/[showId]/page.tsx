@@ -4,6 +4,7 @@ import { useEffect, useState, useCallback } from 'react';
 import Image from 'next/image';
 import { VideoPlayer } from '@/components/viewer/VideoPlayer';
 import { CartDrawer } from '@/components/viewer/CartDrawer';
+import { PollCard } from '@/components/viewer/PollCard';
 import { Countdown } from '@/components/viewer/Countdown';
 import {
   useShowProducts,
@@ -11,7 +12,8 @@ import {
   useShowStatus,
 } from '@/hooks/useRealtime';
 import { useCart } from '@/hooks/useCart';
-import type { Product, ShowProduct } from '@/types/database';
+import { useActivePoll } from '@/hooks/usePolls';
+import type { Product } from '@/types/database';
 import { useParams, useSearchParams } from 'next/navigation';
 
 // Instagram-style product card for mobile
@@ -119,6 +121,7 @@ export default function EmbedLiveViewerPage() {
   const { show, isLoading: showLoading } = useShowStatus(showId);
   const { activeProduct } = useShowProducts(showId);
   const { viewerCount } = useViewerPresence(showId, viewerId);
+  const { activePoll, hasVoted, submitVote } = useActivePoll(showId, viewerId);
 
   // Cart hook - pass showId and viewerId for analytics tracking
   const {
@@ -283,6 +286,16 @@ export default function EmbedLiveViewerPage() {
             </div>
           </button>
         </div>
+
+        {/* Active poll */}
+        {activePoll && (
+          <PollCard
+            poll={activePoll}
+            hasVoted={hasVoted}
+            onVote={submitVote}
+            locale={locale}
+          />
+        )}
       </div>
 
       {/* Bottom section - Product card (Instagram-style) */}

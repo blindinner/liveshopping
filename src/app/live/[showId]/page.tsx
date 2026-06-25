@@ -5,6 +5,7 @@ import { VideoPlayer } from '@/components/viewer/VideoPlayer';
 import { Chat } from '@/components/viewer/Chat';
 import { Reactions } from '@/components/viewer/Reactions';
 import { ProductCard } from '@/components/viewer/ProductCard';
+import { PollCard } from '@/components/viewer/PollCard';
 import { CartDrawer } from '@/components/viewer/CartDrawer';
 import { CheckoutBar } from '@/components/viewer/CheckoutBar';
 // TODO: Re-enable lead capture form after testing
@@ -18,6 +19,7 @@ import {
   useShowStatus,
 } from '@/hooks/useRealtime';
 import { useCart } from '@/hooks/useCart';
+import { useActivePoll } from '@/hooks/usePolls';
 import type { ShowProduct } from '@/types/database';
 import { useParams } from 'next/navigation';
 
@@ -39,6 +41,7 @@ export default function LiveViewerPage() {
   const { activeProduct } = useShowProducts(showId);
   const { viewerCount } = useViewerPresence(showId, viewerId);
   const { reactions, sendReaction } = useReactions(showId);
+  const { activePoll, hasVoted, submitVote } = useActivePoll(showId, viewerId);
 
   // Cart hook - pass showId and viewerId for analytics tracking
   const {
@@ -175,6 +178,16 @@ export default function LiveViewerPage() {
           product={activeProduct.product}
           onAddToCart={() => handleAddToCart(activeProduct)}
           isLoading={cartLoading}
+          locale={locale}
+        />
+      )}
+
+      {/* Active poll - only shows when host launches a poll */}
+      {activePoll && (
+        <PollCard
+          poll={activePoll}
+          hasVoted={hasVoted}
+          onVote={submitVote}
           locale={locale}
         />
       )}

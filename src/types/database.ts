@@ -114,6 +114,48 @@ export interface Cart {
   checkoutUrl: string | null;
 }
 
+// Poll types
+export type PollStatus = 'draft' | 'active' | 'ended';
+
+export interface Poll {
+  id: string;
+  show_id: string;
+  question: string;
+  status: PollStatus;
+  show_results_live: boolean;
+  started_at: string | null;
+  ended_at: string | null;
+  created_at: string;
+  updated_at: string;
+  // Joined data
+  options?: PollOption[];
+}
+
+export interface PollOption {
+  id: string;
+  poll_id: string;
+  option_text: string;
+  display_order: number;
+  created_at: string;
+  // Computed (from aggregation)
+  vote_count?: number;
+}
+
+export interface PollVote {
+  id: string;
+  poll_id: string;
+  option_id: string;
+  viewer_id: string;
+  created_at: string;
+}
+
+// Poll with computed results for display
+export interface PollWithResults extends Poll {
+  options: PollOption[];
+  total_votes: number;
+  viewer_vote?: string; // option_id the current viewer voted for
+}
+
 // Analytics types
 export type ShowEventType =
   | 'viewer_join'
@@ -123,7 +165,8 @@ export type ShowEventType =
   | 'product_view'
   | 'reaction'
   | 'chat_message'
-  | 'order_completed';
+  | 'order_completed'
+  | 'poll_vote';
 
 export interface ShowEvent {
   id: string;
