@@ -5,7 +5,7 @@ import { VideoPlayer } from '@/components/viewer/VideoPlayer';
 import { Chat } from '@/components/viewer/Chat';
 import { Reactions } from '@/components/viewer/Reactions';
 import { ProductCard } from '@/components/viewer/ProductCard';
-import { PollCard } from '@/components/viewer/PollCard';
+import { PollCard, PollButton } from '@/components/viewer/PollCard';
 import { CartDrawer } from '@/components/viewer/CartDrawer';
 import { CheckoutBar } from '@/components/viewer/CheckoutBar';
 // TODO: Re-enable lead capture form after testing
@@ -34,6 +34,7 @@ export default function LiveViewerPage() {
   const [viewerName, setViewerName] = useState<string | null>('Guest');
   const [showLeadForm, setShowLeadForm] = useState(false);
   const [isCartOpen, setIsCartOpen] = useState(false);
+  const [isPollOpen, setIsPollOpen] = useState(false);
 
   // Real-time hooks
   const { show, isLoading: showLoading } = useShowStatus(showId);
@@ -182,14 +183,14 @@ export default function LiveViewerPage() {
         />
       )}
 
-      {/* Active poll - only shows when host launches a poll */}
-      {activePoll && (
+      {/* Poll modal */}
+      {activePoll && isPollOpen && (
         <PollCard
           poll={activePoll}
           hasVoted={hasVoted}
           onVote={submitVote}
+          onClose={() => setIsPollOpen(false)}
           locale={locale}
-          hasProductBelow={!!activeProduct?.product || itemCount > 0}
         />
       )}
 
@@ -204,27 +205,42 @@ export default function LiveViewerPage() {
         />
       </div>
 
-      {/* Cart button - only show when cart is empty */}
-      {itemCount === 0 && (
-        <button
-          onClick={() => setIsCartOpen(true)}
-          className="absolute top-4 start-4 p-3 bg-white/10 backdrop-blur-sm rounded-full z-20 pointer-events-auto"
-        >
-          <svg
-            className="w-6 h-6 text-white"
-            fill="none"
-            stroke="currentColor"
-            viewBox="0 0 24 24"
-          >
-            <path
-              strokeLinecap="round"
-              strokeLinejoin="round"
-              strokeWidth={2}
-              d="M16 11V7a4 4 0 00-8 0v4M5 9h14l1 12H4L5 9z"
+      {/* Top bar - Poll button and cart */}
+      <div className="absolute top-4 left-4 right-4 flex items-center justify-between z-20 pointer-events-none">
+        {/* Left side - Poll button */}
+        <div className="flex items-center gap-2 pointer-events-auto">
+          {activePoll && (
+            <PollButton
+              poll={activePoll}
+              hasVoted={hasVoted}
+              onClick={() => setIsPollOpen(true)}
+              locale={locale}
             />
-          </svg>
-        </button>
-      )}
+          )}
+        </div>
+
+        {/* Right side - Cart button (only when cart is empty) */}
+        {itemCount === 0 && (
+          <button
+            onClick={() => setIsCartOpen(true)}
+            className="p-3 bg-white/10 backdrop-blur-sm rounded-full pointer-events-auto"
+          >
+            <svg
+              className="w-6 h-6 text-white"
+              fill="none"
+              stroke="currentColor"
+              viewBox="0 0 24 24"
+            >
+              <path
+                strokeLinecap="round"
+                strokeLinejoin="round"
+                strokeWidth={2}
+                d="M16 11V7a4 4 0 00-8 0v4M5 9h14l1 12H4L5 9z"
+              />
+            </svg>
+          </button>
+        )}
+      </div>
 
       {/* Sticky checkout bar - shows when cart has items */}
       <CheckoutBar

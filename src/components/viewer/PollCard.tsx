@@ -7,38 +7,35 @@ interface PollCardProps {
   poll: PollWithResults;
   hasVoted: boolean;
   onVote: (optionId: string) => Promise<void>;
+  onClose: () => void;
   locale: 'he' | 'en';
-  inline?: boolean; // When true, no absolute positioning - used for stacking layouts
-  hasProductBelow?: boolean; // When true, collapsed pill positions higher to avoid product card
 }
 
-export function PollCard({ poll, hasVoted, onVote, locale, inline = false, hasProductBelow = false }: PollCardProps) {
+export function PollCard({ poll, hasVoted, onVote, onClose, locale }: PollCardProps) {
   const [isVoting, setIsVoting] = useState(false);
   const [selectedOption, setSelectedOption] = useState<string | null>(null);
-  const [isExpanded, setIsExpanded] = useState(!hasVoted); // Start collapsed if already voted
   const isRTL = locale === 'he';
 
-  // Auto-collapse after voting
+  // Auto-close after voting (with a short delay to show the result)
   useEffect(() => {
-    if (hasVoted) {
-      setIsExpanded(false);
+    if (hasVoted && selectedOption) {
+      const timer = setTimeout(() => {
+        onClose();
+      }, 1500);
+      return () => clearTimeout(timer);
     }
-  }, [hasVoted]);
+  }, [hasVoted, selectedOption, onClose]);
 
   const t = {
     he: {
       poll: 'סקר',
       votes: 'הצבעות',
-      vote: 'הצבע',
       voted: 'הצבעת',
-      tapToVote: 'הקש להצביע',
     },
     en: {
       poll: 'Poll',
       votes: 'votes',
-      vote: 'Vote',
       voted: 'Voted',
-      tapToVote: 'Tap to vote',
     },
   }[locale];
 
@@ -48,7 +45,6 @@ export function PollCard({ poll, hasVoted, onVote, locale, inline = false, hasPr
     setIsVoting(true);
     try {
       await onVote(optionId);
-      // Will auto-collapse via useEffect when hasVoted becomes true
     } finally {
       setIsVoting(false);
     }
@@ -59,85 +55,28 @@ export function PollCard({ poll, hasVoted, onVote, locale, inline = false, hasPr
     return Math.round((voteCount / poll.total_votes) * 100);
   };
 
-  // Get top 2 options by vote count for collapsed view
-  const getTopResults = () => {
-    const sorted = [...poll.options].sort((a, b) => (b.vote_count || 0) - (a.vote_count || 0));
-    return sorted.slice(0, 2).map(opt => getPercentage(opt.vote_count || 0));
-  };
-
   // Show results if voted or if poll is set to show live results
   const showResults = hasVoted || poll.show_results_live;
 
-  // Collapsed pill view
-  if (!isExpanded) {
-    const topResults = getTopResults();
-
-    return (
-      <div
-        className={inline
-          ? "pointer-events-auto"
-          : `absolute z-40 pointer-events-auto ${isRTL ? 'right-3' : 'left-3'} ${hasProductBelow ? 'bottom-24' : 'bottom-3'}`
-        }
-        dir={isRTL ? 'rtl' : 'ltr'}
-      >
-        <button
-          onClick={() => setIsExpanded(true)}
-          className="flex items-center gap-2 px-3 py-2 bg-black/60 backdrop-blur-md rounded-full border border-purple-500/30 hover:border-purple-500/50 transition-all hover:scale-105 active:scale-95"
-        >
-          {/* Poll icon */}
-          <svg
-            className="w-4 h-4 text-purple-400"
-            fill="none"
-            stroke="currentColor"
-            viewBox="0 0 24 24"
-          >
-            <path
-              strokeLinecap="round"
-              strokeLinejoin="round"
-              strokeWidth={2}
-              d="M9 19v-6a2 2 0 00-2-2H5a2 2 0 00-2 2v6a2 2 0 002 2h2a2 2 0 002-2zm0 0V9a2 2 0 012-2h2a2 2 0 012 2v10m-6 0a2 2 0 002 2h2a2 2 0 002-2m0 0V5a2 2 0 012-2h2a2 2 0 012 2v14a2 2 0 01-2 2h-2a2 2 0 01-2-2z"
-            />
-          </svg>
-
-          {/* Results or vote prompt */}
-          {poll.total_votes > 0 ? (
-            <span className="text-white text-xs font-medium">
-              {topResults[0]}% · {topResults[1] ?? 0}%
-            </span>
-          ) : (
-            <span className="text-purple-300 text-xs font-medium">
-              {t.poll}
-            </span>
-          )}
-
-          {/* Vote indicator or expand hint */}
-          {hasVoted ? (
-            <svg className="w-3 h-3 text-purple-400" fill="currentColor" viewBox="0 0 20 20">
-              <path fillRule="evenodd" d="M16.707 5.293a1 1 0 010 1.414l-8 8a1 1 0 01-1.414 0l-4-4a1 1 0 011.414-1.414L8 12.586l7.293-7.293a1 1 0 011.414 0z" clipRule="evenodd" />
-            </svg>
-          ) : (
-            <div className="w-1.5 h-1.5 bg-purple-400 rounded-full animate-pulse" />
-          )}
-        </button>
-      </div>
-    );
-  }
-
-  // Expanded full poll view
   return (
     <div
-      className={inline
-        ? "pointer-events-auto"
-        : "absolute bottom-32 left-3 right-3 z-40 pointer-events-auto"
-      }
-      dir={isRTL ? 'rtl' : 'ltr'}
+      className="fixed inset-0 z-50 flex items-center justify-center p-4"
+      onClick={onClose}
     >
-      <div className="bg-black/40 backdrop-blur-md rounded-2xl border border-white/10 overflow-hidden animate-in slide-in-from-bottom-4 duration-300">
+      {/* Backdrop */}
+      <div className="absolute inset-0 bg-black/60 backdrop-blur-sm" />
+
+      {/* Poll card */}
+      <div
+        className="relative w-full max-w-sm bg-black/80 backdrop-blur-md rounded-2xl border border-white/10 overflow-hidden animate-in zoom-in-95 duration-200"
+        onClick={(e) => e.stopPropagation()}
+        dir={isRTL ? 'rtl' : 'ltr'}
+      >
         {/* Header with close button */}
-        <div className="px-4 py-2.5 bg-purple-500/10 border-b border-white/5 flex items-center justify-between">
+        <div className="px-4 py-3 bg-purple-500/10 border-b border-white/5 flex items-center justify-between">
           <div className="flex items-center gap-2">
             <svg
-              className="w-4 h-4 text-purple-400"
+              className="w-5 h-5 text-purple-400"
               fill="none"
               stroke="currentColor"
               viewBox="0 0 24 24"
@@ -146,25 +85,24 @@ export function PollCard({ poll, hasVoted, onVote, locale, inline = false, hasPr
                 strokeLinecap="round"
                 strokeLinejoin="round"
                 strokeWidth={2}
-                d="M9 5H7a2 2 0 00-2 2v12a2 2 0 002 2h10a2 2 0 002-2V7a2 2 0 00-2-2h-2M9 5a2 2 0 002 2h2a2 2 0 002-2M9 5a2 2 0 012-2h2a2 2 0 012 2"
+                d="M9 19v-6a2 2 0 00-2-2H5a2 2 0 00-2 2v6a2 2 0 002 2h2a2 2 0 002-2zm0 0V9a2 2 0 012-2h2a2 2 0 012 2v10m-6 0a2 2 0 002 2h2a2 2 0 002-2m0 0V5a2 2 0 012-2h2a2 2 0 012 2v14a2 2 0 01-2 2h-2a2 2 0 01-2-2z"
               />
             </svg>
-            <span className="text-purple-400 text-xs font-medium uppercase tracking-wide">
+            <span className="text-purple-400 text-sm font-medium uppercase tracking-wide">
               {t.poll}
             </span>
           </div>
-          <div className="flex items-center gap-2">
+          <div className="flex items-center gap-3">
             {poll.total_votes > 0 && (
-              <span className="text-white/50 text-xs">
+              <span className="text-white/50 text-sm">
                 {poll.total_votes} {t.votes}
               </span>
             )}
-            {/* Close button */}
             <button
-              onClick={() => setIsExpanded(false)}
-              className="p-1 hover:bg-white/10 rounded-full transition-colors"
+              onClick={onClose}
+              className="p-1.5 hover:bg-white/10 rounded-full transition-colors"
             >
-              <svg className="w-4 h-4 text-white/60" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+              <svg className="w-5 h-5 text-white/60" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                 <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M6 18L18 6M6 6l12 12" />
               </svg>
             </button>
@@ -172,8 +110,8 @@ export function PollCard({ poll, hasVoted, onVote, locale, inline = false, hasPr
         </div>
 
         {/* Question */}
-        <div className="px-4 py-3">
-          <h3 className="text-white font-medium text-sm leading-snug">
+        <div className="px-4 py-4">
+          <h3 className="text-white font-semibold text-base leading-snug">
             {poll.question}
           </h3>
         </div>
@@ -199,26 +137,26 @@ export function PollCard({ poll, hasVoted, onVote, locale, inline = false, hasPr
                     : 'cursor-pointer hover:scale-[1.02] active:scale-[0.98]'
                 } ${
                   isSelected
-                    ? 'ring-2 ring-purple-500/70'
-                    : 'ring-1 ring-white/10'
+                    ? 'ring-2 ring-purple-500'
+                    : 'ring-1 ring-white/20'
                 }`}
               >
                 {/* Background bar for results */}
                 {showResults && (
                   <div
                     className={`absolute inset-0 transition-all duration-500 ${
-                      isWinning ? 'bg-purple-500/20' : 'bg-white/5'
+                      isWinning ? 'bg-purple-500/30' : 'bg-white/10'
                     }`}
                     style={{ width: `${percentage}%` }}
                   />
                 )}
 
                 {/* Content */}
-                <div className="relative px-3 py-2.5 flex items-center justify-between gap-2">
-                  <div className="flex items-center gap-2 min-w-0">
+                <div className="relative px-4 py-3 flex items-center justify-between gap-3">
+                  <div className="flex items-center gap-3 min-w-0">
                     {/* Selection indicator */}
                     <div
-                      className={`w-4 h-4 rounded-full border-2 flex items-center justify-center shrink-0 transition-colors ${
+                      className={`w-5 h-5 rounded-full border-2 flex items-center justify-center shrink-0 transition-colors ${
                         isSelected
                           ? 'border-purple-500 bg-purple-500'
                           : 'border-white/40'
@@ -226,7 +164,7 @@ export function PollCard({ poll, hasVoted, onVote, locale, inline = false, hasPr
                     >
                       {isSelected && (
                         <svg
-                          className="w-2.5 h-2.5 text-white"
+                          className="w-3 h-3 text-white"
                           fill="none"
                           stroke="currentColor"
                           viewBox="0 0 24 24"
@@ -241,7 +179,7 @@ export function PollCard({ poll, hasVoted, onVote, locale, inline = false, hasPr
                       )}
                     </div>
 
-                    <span className="text-white text-sm truncate">
+                    <span className="text-white text-sm font-medium truncate">
                       {option.option_text}
                     </span>
                   </div>
@@ -249,7 +187,7 @@ export function PollCard({ poll, hasVoted, onVote, locale, inline = false, hasPr
                   {/* Percentage */}
                   {showResults && (
                     <span
-                      className={`text-sm font-medium shrink-0 ${
+                      className={`text-sm font-bold shrink-0 ${
                         isWinning ? 'text-purple-400' : 'text-white/60'
                       }`}
                     >
@@ -264,10 +202,10 @@ export function PollCard({ poll, hasVoted, onVote, locale, inline = false, hasPr
 
         {/* Footer - voting status */}
         {hasVoted && (
-          <div className="px-4 py-2 bg-purple-500/5 border-t border-white/5">
-            <div className="flex items-center justify-center gap-1.5 text-purple-400 text-xs">
+          <div className="px-4 py-3 bg-purple-500/10 border-t border-white/5">
+            <div className="flex items-center justify-center gap-2 text-purple-400 text-sm font-medium">
               <svg
-                className="w-3.5 h-3.5"
+                className="w-4 h-4"
                 fill="none"
                 stroke="currentColor"
                 viewBox="0 0 24 24"
@@ -287,10 +225,76 @@ export function PollCard({ poll, hasVoted, onVote, locale, inline = false, hasPr
         {/* Loading indicator */}
         {isVoting && (
           <div className="absolute inset-0 bg-black/30 flex items-center justify-center">
-            <div className="animate-spin w-6 h-6 border-2 border-purple-500 border-t-transparent rounded-full" />
+            <div className="animate-spin w-8 h-8 border-2 border-purple-500 border-t-transparent rounded-full" />
           </div>
         )}
       </div>
     </div>
+  );
+}
+
+// Poll button for the top bar
+interface PollButtonProps {
+  poll: PollWithResults;
+  hasVoted: boolean;
+  onClick: () => void;
+  locale: 'he' | 'en';
+}
+
+export function PollButton({ poll, hasVoted, onClick, locale }: PollButtonProps) {
+  const getPercentage = (voteCount: number) => {
+    if (poll.total_votes === 0) return 0;
+    return Math.round((voteCount / poll.total_votes) * 100);
+  };
+
+  // Get top 2 options by vote count
+  const getTopResults = () => {
+    const sorted = [...poll.options].sort((a, b) => (b.vote_count || 0) - (a.vote_count || 0));
+    return sorted.slice(0, 2).map(opt => getPercentage(opt.vote_count || 0));
+  };
+
+  const topResults = getTopResults();
+  const t = locale === 'he' ? 'סקר' : 'Poll';
+
+  return (
+    <button
+      onClick={onClick}
+      className="flex items-center gap-1.5 px-2 py-1 bg-purple-500/20 hover:bg-purple-500/30 backdrop-blur-sm rounded-lg transition-colors"
+    >
+      {/* Poll icon */}
+      <svg
+        className="w-3.5 h-3.5 text-purple-400"
+        fill="none"
+        stroke="currentColor"
+        viewBox="0 0 24 24"
+      >
+        <path
+          strokeLinecap="round"
+          strokeLinejoin="round"
+          strokeWidth={2}
+          d="M9 19v-6a2 2 0 00-2-2H5a2 2 0 00-2 2v6a2 2 0 002 2h2a2 2 0 002-2zm0 0V9a2 2 0 012-2h2a2 2 0 012 2v10m-6 0a2 2 0 002 2h2a2 2 0 002-2m0 0V5a2 2 0 012-2h2a2 2 0 012 2v14a2 2 0 01-2 2h-2a2 2 0 01-2-2z"
+        />
+      </svg>
+
+      {/* Results or label */}
+      {poll.total_votes > 0 ? (
+        <span className="text-white text-xs font-medium">
+          {topResults[0]}%
+        </span>
+      ) : (
+        <span className="text-purple-300 text-xs font-medium">
+          {t}
+        </span>
+      )}
+
+      {/* Indicator */}
+      {hasVoted ? (
+        <svg className="w-3 h-3 text-purple-400" fill="currentColor" viewBox="0 0 20 20">
+          <path fillRule="evenodd" d="M16.707 5.293a1 1 0 010 1.414l-8 8a1 1 0 01-1.414 0l-4-4a1 1 0 011.414-1.414L8 12.586l7.293-7.293a1 1 0 011.414 0z" clipRule="evenodd" />
+        </svg>
+      ) : (
+        <div className="w-1.5 h-1.5 bg-purple-400 rounded-full animate-pulse" />
+      )}
+    </button>
   );
 }

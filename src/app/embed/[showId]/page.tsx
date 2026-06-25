@@ -4,7 +4,7 @@ import { useEffect, useState, useCallback } from 'react';
 import Image from 'next/image';
 import { VideoPlayer } from '@/components/viewer/VideoPlayer';
 import { CartDrawer } from '@/components/viewer/CartDrawer';
-import { PollCard } from '@/components/viewer/PollCard';
+import { PollCard, PollButton } from '@/components/viewer/PollCard';
 import { Countdown } from '@/components/viewer/Countdown';
 import {
   useShowProducts,
@@ -116,6 +116,7 @@ export default function EmbedLiveViewerPage() {
   // Generate viewer ID (persisted in memory for the session)
   const [viewerId] = useState(() => `embed-${Date.now()}-${Math.random().toString(36).slice(2)}`);
   const [isCartOpen, setIsCartOpen] = useState(false);
+  const [isPollOpen, setIsPollOpen] = useState(false);
 
   // Real-time hooks
   const { show, isLoading: showLoading } = useShowStatus(showId);
@@ -242,7 +243,7 @@ export default function EmbedLiveViewerPage() {
 
         {/* Top bar - Live badge and cart */}
         <div className="absolute top-0 left-0 right-0 p-3 flex items-center justify-between z-20 pointer-events-none">
-          {/* Live badge */}
+          {/* Live badge, viewer count, and poll button */}
           <div className="flex items-center gap-2 pointer-events-auto">
             <div className="flex items-center gap-1.5 px-2 py-1 bg-red-500 rounded-lg">
               <div className="w-2 h-2 bg-white rounded-full animate-pulse" />
@@ -256,6 +257,14 @@ export default function EmbedLiveViewerPage() {
                 </svg>
                 <span className="text-white text-xs font-medium">{viewerCount}</span>
               </div>
+            )}
+            {activePoll && (
+              <PollButton
+                poll={activePoll}
+                hasVoted={hasVoted}
+                onClick={() => setIsPollOpen(true)}
+                locale={locale}
+              />
             )}
           </div>
 
@@ -289,14 +298,14 @@ export default function EmbedLiveViewerPage() {
 
       </div>
 
-      {/* Poll - floating overlay */}
-      {activePoll && (
+      {/* Poll modal */}
+      {activePoll && isPollOpen && (
         <PollCard
           poll={activePoll}
           hasVoted={hasVoted}
           onVote={submitVote}
+          onClose={() => setIsPollOpen(false)}
           locale={locale}
-          hasProductBelow={!!activeProduct?.product || itemCount > 0}
         />
       )}
 
