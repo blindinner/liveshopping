@@ -123,6 +123,9 @@ export default function EmbedLiveViewerPage() {
   const { viewerCount } = useViewerPresence(showId, viewerId);
   const { activePoll, hasVoted, submitVote } = useActivePoll(showId, viewerId);
 
+  // DEBUG: Remove this after testing
+  console.log('[Embed] activePoll:', activePoll, 'hasVoted:', hasVoted);
+
   // Cart hook - pass showId and viewerId for analytics tracking
   const {
     cart,
@@ -290,13 +293,18 @@ export default function EmbedLiveViewerPage() {
       </div>
 
       {/* Active poll */}
-      {activePoll && (
+      {activePoll ? (
         <PollCard
           poll={activePoll}
           hasVoted={hasVoted}
           onVote={submitVote}
           locale={locale}
         />
+      ) : (
+        /* DEBUG: Remove after testing - shows poll status */
+        <div className="absolute top-16 left-3 bg-red-500 text-white text-xs px-2 py-1 rounded z-50">
+          No active poll
+        </div>
       )}
 
       {/* Bottom section - Product card (Instagram-style) */}
