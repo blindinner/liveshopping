@@ -1,6 +1,6 @@
 'use client';
 
-import { useState } from 'react';
+import { useState, useEffect } from 'react';
 import type { PollWithResults } from '@/types/database';
 
 interface PollCardProps {
@@ -9,12 +9,21 @@ interface PollCardProps {
   onVote: (optionId: string) => Promise<void>;
   locale: 'he' | 'en';
   inline?: boolean; // When true, no absolute positioning - used for stacking layouts
+  hasProductBelow?: boolean; // When true, collapsed pill positions higher to avoid product card
 }
 
-export function PollCard({ poll, hasVoted, onVote, locale, inline = false }: PollCardProps) {
+export function PollCard({ poll, hasVoted, onVote, locale, inline = false, hasProductBelow = false }: PollCardProps) {
   const [isVoting, setIsVoting] = useState(false);
   const [selectedOption, setSelectedOption] = useState<string | null>(null);
+  const [isExpanded, setIsExpanded] = useState(!hasVoted); // Start collapsed if already voted
   const isRTL = locale === 'he';
+
+  // Auto-collapse after voting
+  useEffect(() => {
+    if (hasVoted) {
+      setIsExpanded(false);
+    }
+  }, [hasVoted]);
 
   const t = {
     he: {
@@ -22,12 +31,14 @@ export function PollCard({ poll, hasVoted, onVote, locale, inline = false }: Pol
       votes: 'הצבעות',
       vote: 'הצבע',
       voted: 'הצבעת',
+      tapToVote: 'הקש להצביע',
     },
     en: {
       poll: 'Poll',
       votes: 'votes',
       vote: 'Vote',
       voted: 'Voted',
+      tapToVote: 'Tap to vote',
     },
   }[locale];
 
@@ -37,6 +48,7 @@ export function PollCard({ poll, hasVoted, onVote, locale, inline = false }: Pol
     setIsVoting(true);
     try {
       await onVote(optionId);
+      // Will auto-collapse via useEffect when hasVoted becomes true
     } finally {
       setIsVoting(false);
     }
@@ -47,9 +59,71 @@ export function PollCard({ poll, hasVoted, onVote, locale, inline = false }: Pol
     return Math.round((voteCount / poll.total_votes) * 100);
   };
 
+  // Get top 2 options by vote count for collapsed view
+  const getTopResults = () => {
+    const sorted = [...poll.options].sort((a, b) => (b.vote_count || 0) - (a.vote_count || 0));
+    return sorted.slice(0, 2).map(opt => getPercentage(opt.vote_count || 0));
+  };
+
   // Show results if voted or if poll is set to show live results
   const showResults = hasVoted || poll.show_results_live;
 
+  // Collapsed pill view
+  if (!isExpanded) {
+    const topResults = getTopResults();
+
+    return (
+      <div
+        className={inline
+          ? "pointer-events-auto"
+          : `absolute z-40 pointer-events-auto ${isRTL ? 'right-3' : 'left-3'} ${hasProductBelow ? 'bottom-24' : 'bottom-3'}`
+        }
+        dir={isRTL ? 'rtl' : 'ltr'}
+      >
+        <button
+          onClick={() => setIsExpanded(true)}
+          className="flex items-center gap-2 px-3 py-2 bg-black/60 backdrop-blur-md rounded-full border border-purple-500/30 hover:border-purple-500/50 transition-all hover:scale-105 active:scale-95"
+        >
+          {/* Poll icon */}
+          <svg
+            className="w-4 h-4 text-purple-400"
+            fill="none"
+            stroke="currentColor"
+            viewBox="0 0 24 24"
+          >
+            <path
+              strokeLinecap="round"
+              strokeLinejoin="round"
+              strokeWidth={2}
+              d="M9 19v-6a2 2 0 00-2-2H5a2 2 0 00-2 2v6a2 2 0 002 2h2a2 2 0 002-2zm0 0V9a2 2 0 012-2h2a2 2 0 012 2v10m-6 0a2 2 0 002 2h2a2 2 0 002-2m0 0V5a2 2 0 012-2h2a2 2 0 012 2v14a2 2 0 01-2 2h-2a2 2 0 01-2-2z"
+            />
+          </svg>
+
+          {/* Results or vote prompt */}
+          {poll.total_votes > 0 ? (
+            <span className="text-white text-xs font-medium">
+              {topResults[0]}% · {topResults[1] ?? 0}%
+            </span>
+          ) : (
+            <span className="text-purple-300 text-xs font-medium">
+              {t.poll}
+            </span>
+          )}
+
+          {/* Vote indicator or expand hint */}
+          {hasVoted ? (
+            <svg className="w-3 h-3 text-purple-400" fill="currentColor" viewBox="0 0 20 20">
+              <path fillRule="evenodd" d="M16.707 5.293a1 1 0 010 1.414l-8 8a1 1 0 01-1.414 0l-4-4a1 1 0 011.414-1.414L8 12.586l7.293-7.293a1 1 0 011.414 0z" clipRule="evenodd" />
+            </svg>
+          ) : (
+            <div className="w-1.5 h-1.5 bg-purple-400 rounded-full animate-pulse" />
+          )}
+        </button>
+      </div>
+    );
+  }
+
+  // Expanded full poll view
   return (
     <div
       className={inline
@@ -59,7 +133,7 @@ export function PollCard({ poll, hasVoted, onVote, locale, inline = false }: Pol
       dir={isRTL ? 'rtl' : 'ltr'}
     >
       <div className="bg-black/40 backdrop-blur-md rounded-2xl border border-white/10 overflow-hidden animate-in slide-in-from-bottom-4 duration-300">
-        {/* Header */}
+        {/* Header with close button */}
         <div className="px-4 py-2.5 bg-purple-500/10 border-b border-white/5 flex items-center justify-between">
           <div className="flex items-center gap-2">
             <svg
@@ -79,11 +153,22 @@ export function PollCard({ poll, hasVoted, onVote, locale, inline = false }: Pol
               {t.poll}
             </span>
           </div>
-          {poll.total_votes > 0 && (
-            <span className="text-white/50 text-xs">
-              {poll.total_votes} {t.votes}
-            </span>
-          )}
+          <div className="flex items-center gap-2">
+            {poll.total_votes > 0 && (
+              <span className="text-white/50 text-xs">
+                {poll.total_votes} {t.votes}
+              </span>
+            )}
+            {/* Close button */}
+            <button
+              onClick={() => setIsExpanded(false)}
+              className="p-1 hover:bg-white/10 rounded-full transition-colors"
+            >
+              <svg className="w-4 h-4 text-white/60" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M6 18L18 6M6 6l12 12" />
+              </svg>
+            </button>
+          </div>
         </div>
 
         {/* Question */}

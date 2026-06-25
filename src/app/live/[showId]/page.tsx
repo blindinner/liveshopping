@@ -189,6 +189,7 @@ export default function LiveViewerPage() {
           hasVoted={hasVoted}
           onVote={submitVote}
           locale={locale}
+          hasProductBelow={!!activeProduct?.product || itemCount > 0}
         />
       )}
 

@@ -289,19 +289,19 @@ export default function EmbedLiveViewerPage() {
 
       </div>
 
-      {/* Bottom section - Poll and Product card (Instagram-style) */}
-      <div className="shrink-0 p-3 pb-safe space-y-2">
-        {/* Poll - stacks above product */}
-        {activePoll && (
-          <PollCard
-            poll={activePoll}
-            hasVoted={hasVoted}
-            onVote={submitVote}
-            locale={locale}
-            inline
-          />
-        )}
+      {/* Poll - floating overlay */}
+      {activePoll && (
+        <PollCard
+          poll={activePoll}
+          hasVoted={hasVoted}
+          onVote={submitVote}
+          locale={locale}
+          hasProductBelow={!!activeProduct?.product || itemCount > 0}
+        />
+      )}
 
+      {/* Bottom section - Product card (Instagram-style) */}
+      <div className="shrink-0 p-3 pb-safe space-y-2">
         {/* Product card */}
         {activeProduct?.product && (
           <MobileProductCard
