@@ -12,18 +12,6 @@ interface PollButtonProps {
 }
 
 export function PollButton({ poll, hasVoted, onClick, locale }: PollButtonProps) {
-  const getPercentage = (voteCount: number) => {
-    if (poll.total_votes === 0) return 0;
-    return Math.round((voteCount / poll.total_votes) * 100);
-  };
-
-  // Get top option by vote count
-  const getTopResult = () => {
-    const sorted = [...poll.options].sort((a, b) => (b.vote_count || 0) - (a.vote_count || 0));
-    return getPercentage(sorted[0]?.vote_count || 0);
-  };
-
-  const topResult = getTopResult();
   const t = locale === 'he' ? 'סקר' : 'Poll';
 
   return (
@@ -46,16 +34,10 @@ export function PollButton({ poll, hasVoted, onClick, locale }: PollButtonProps)
         />
       </svg>
 
-      {/* Results or label */}
-      {poll.total_votes > 0 ? (
-        <span className="text-white text-xs font-medium">
-          {topResult}%
-        </span>
-      ) : (
-        <span className="text-purple-300 text-xs font-medium">
-          {t}
-        </span>
-      )}
+      {/* Label */}
+      <span className="text-purple-300 text-xs font-medium">
+        {t}
+      </span>
 
       {/* Indicator */}
       {hasVoted ? (
@@ -82,18 +64,21 @@ interface PollViewProps {
 export function PollView({ poll, hasVoted, onVote, onCollapse, locale, videoElement }: PollViewProps) {
   const [isVoting, setIsVoting] = useState(false);
   const [selectedOption, setSelectedOption] = useState<string | null>(null);
+  const [justVoted, setJustVoted] = useState(false);
   const isRTL = locale === 'he';
 
   const t = {
     he: {
       poll: 'סקר',
       votes: 'הצבעות',
-      voted: 'הצבעת',
+      voted: 'תודה!',
+      done: 'סיום',
     },
     en: {
       poll: 'Poll',
       votes: 'votes',
-      voted: 'Voted',
+      voted: 'Thanks!',
+      done: 'Done',
     },
   }[locale];
 
@@ -103,6 +88,11 @@ export function PollView({ poll, hasVoted, onVote, onCollapse, locale, videoElem
     setIsVoting(true);
     try {
       await onVote(optionId);
+      setJustVoted(true);
+      // Auto-close after 2 seconds
+      setTimeout(() => {
+        onCollapse();
+      }, 2000);
     } finally {
       setIsVoting(false);
     }
@@ -217,26 +207,36 @@ export function PollView({ poll, hasVoted, onVote, onCollapse, locale, videoElem
           </p>
         )}
 
-        {/* Voted indicator */}
-        {hasVoted && (
-          <div className="flex items-center justify-center gap-2 mt-4 text-purple-400">
-            <svg className="w-4 h-4" fill="currentColor" viewBox="0 0 20 20">
-              <path fillRule="evenodd" d="M16.707 5.293a1 1 0 010 1.414l-8 8a1 1 0 01-1.414 0l-4-4a1 1 0 011.414-1.414L8 12.586l7.293-7.293a1 1 0 011.414 0z" clipRule="evenodd" />
-            </svg>
-            <span className="text-sm font-medium">{t.voted}</span>
+        {/* After voting: show thanks message and Done button */}
+        {(hasVoted || justVoted) && (
+          <div className="mt-6 flex flex-col items-center gap-4">
+            <div className="flex items-center justify-center gap-2 text-purple-400">
+              <svg className="w-5 h-5" fill="currentColor" viewBox="0 0 20 20">
+                <path fillRule="evenodd" d="M16.707 5.293a1 1 0 010 1.414l-8 8a1 1 0 01-1.414 0l-4-4a1 1 0 011.414-1.414L8 12.586l7.293-7.293a1 1 0 011.414 0z" clipRule="evenodd" />
+              </svg>
+              <span className="text-base font-medium">{t.voted}</span>
+            </div>
+            <button
+              onClick={onCollapse}
+              className="px-8 py-3 bg-purple-500 hover:bg-purple-600 text-white font-semibold rounded-full transition-colors"
+            >
+              {t.done}
+            </button>
           </div>
         )}
       </div>
 
-      {/* Collapse button */}
-      <button
-        onClick={onCollapse}
-        className="absolute bottom-6 left-1/2 -translate-x-1/2 p-3 text-white/60 hover:text-white transition-colors"
-      >
-        <svg className="w-6 h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-          <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M5 15l7-7 7 7" />
-        </svg>
-      </button>
+      {/* Collapse chevron (only show when not voted) */}
+      {!hasVoted && !justVoted && (
+        <button
+          onClick={onCollapse}
+          className="absolute bottom-6 left-1/2 -translate-x-1/2 p-3 text-white/60 hover:text-white transition-colors"
+        >
+          <svg className="w-6 h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+            <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M5 15l7-7 7 7" />
+          </svg>
+        </button>
+      )}
 
       {/* Loading overlay */}
       {isVoting && (
