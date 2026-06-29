@@ -13,6 +13,11 @@ const nextConfig: NextConfig = {
         hostname: '*.myshopify.com',
         pathname: '/**',
       },
+      {
+        protocol: 'https',
+        hostname: '*.cloudflarestream.com',
+        pathname: '/**',
+      },
     ],
   },
   // Headers for embedding
