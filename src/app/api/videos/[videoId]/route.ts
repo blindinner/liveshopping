@@ -2,6 +2,18 @@ import { NextResponse } from 'next/server';
 import { createClient } from '@/lib/supabase/server';
 import { deleteVideo } from '@/lib/cloudflare/client';
 
+// CORS headers for widget embeds
+const corsHeaders = {
+  'Access-Control-Allow-Origin': '*',
+  'Access-Control-Allow-Methods': 'GET, OPTIONS',
+  'Access-Control-Allow-Headers': 'Content-Type',
+};
+
+// OPTIONS handler for CORS preflight
+export async function OPTIONS() {
+  return new NextResponse(null, { headers: corsHeaders });
+}
+
 // GET /api/videos/[videoId]
 export async function GET(
   request: Request,
@@ -13,20 +25,27 @@ export async function GET(
 
     const { data: video, error } = await supabase
       .from('videos')
-      .select('*, product:products(*)')
+      .select(`
+        *,
+        product:products(*),
+        products:video_products(
+          *,
+          product:products(*)
+        )
+      `)
       .eq('id', videoId)
       .single();
 
     if (error || !video) {
-      return NextResponse.json({ error: 'Video not found' }, { status: 404 });
+      return NextResponse.json({ error: 'Video not found' }, { status: 404, headers: corsHeaders });
     }
 
-    return NextResponse.json({ video });
+    return NextResponse.json({ video }, { headers: corsHeaders });
   } catch (error) {
     console.error('Get video error:', error);
     return NextResponse.json(
       { error: 'Failed to fetch video' },
-      { status: 500 }
+      { status: 500, headers: corsHeaders }
     );
   }
 }

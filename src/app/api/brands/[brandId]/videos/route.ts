@@ -1,6 +1,18 @@
 import { NextResponse } from 'next/server';
 import { createClient } from '@/lib/supabase/server';
 
+// CORS headers for widget embeds
+const corsHeaders = {
+  'Access-Control-Allow-Origin': '*',
+  'Access-Control-Allow-Methods': 'GET, OPTIONS',
+  'Access-Control-Allow-Headers': 'Content-Type',
+};
+
+// OPTIONS handler for CORS preflight
+export async function OPTIONS() {
+  return new NextResponse(null, { headers: corsHeaders });
+}
+
 // GET /api/brands/[brandId]/videos - Get published videos for a brand
 export async function GET(
   request: Request,
@@ -37,12 +49,12 @@ export async function GET(
       throw error;
     }
 
-    return NextResponse.json({ videos });
+    return NextResponse.json({ videos }, { headers: corsHeaders });
   } catch (error) {
     console.error('Get brand videos error:', error);
     return NextResponse.json(
       { error: 'Failed to fetch videos' },
-      { status: 500 }
+      { status: 500, headers: corsHeaders }
     );
   }
 }
