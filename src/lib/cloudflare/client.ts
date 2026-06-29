@@ -130,3 +130,132 @@ export function getPlaybackUrl(uid: string): string {
 export function getHlsPlaybackUrl(uid: string): string {
   return `https://customer-${CLOUDFLARE_ACCOUNT_ID}.cloudflarestream.com/${uid}/manifest/video.m3u8`;
 }
+
+// ============================================
+// VOD (Video on Demand) Upload Functions
+// ============================================
+
+interface DirectUploadResponse {
+  result: {
+    uid: string;
+    uploadURL: string;
+  };
+  success: boolean;
+  errors: Array<{ message: string }>;
+}
+
+interface VideoDetailsResponse {
+  result: {
+    uid: string;
+    status: {
+      state: 'pendingupload' | 'downloading' | 'queued' | 'inprogress' | 'ready' | 'error';
+      errorReasonCode?: string;
+      errorReasonText?: string;
+    };
+    meta?: {
+      name?: string;
+    };
+    playback?: {
+      hls: string;
+      dash: string;
+    };
+    thumbnail?: string;
+    duration?: number;
+    created: string;
+    modified: string;
+  };
+  success: boolean;
+  errors: Array<{ message: string }>;
+}
+
+// Create a direct upload URL for client-side video upload (TUS protocol)
+export async function createDirectUploadUrl(options: {
+  maxDurationSeconds?: number;
+  name?: string;
+}): Promise<{
+  uid: string;
+  uploadUrl: string;
+}> {
+  const { maxDurationSeconds = 3600, name } = options;
+
+  const response = await fetch(`${API_BASE}/direct_upload`, {
+    method: 'POST',
+    headers: {
+      'Authorization': `Bearer ${CLOUDFLARE_API_TOKEN}`,
+      'Content-Type': 'application/json',
+    },
+    body: JSON.stringify({
+      maxDurationSeconds,
+      meta: name ? { name } : undefined,
+    }),
+  });
+
+  const data: DirectUploadResponse = await response.json();
+
+  if (!data.success) {
+    throw new Error(data.errors?.[0]?.message || 'Failed to create upload URL');
+  }
+
+  return {
+    uid: data.result.uid,
+    uploadUrl: data.result.uploadURL,
+  };
+}
+
+// Get video details and processing status
+export async function getVideoDetails(uid: string): Promise<{
+  uid: string;
+  status: 'pendingupload' | 'downloading' | 'queued' | 'inprogress' | 'ready' | 'error';
+  errorMessage?: string;
+  playbackId: string | null;
+  thumbnailUrl: string | null;
+  durationSeconds: number | null;
+}> {
+  const response = await fetch(`${API_BASE}/${uid}`, {
+    headers: {
+      'Authorization': `Bearer ${CLOUDFLARE_API_TOKEN}`,
+    },
+  });
+
+  const data: VideoDetailsResponse = await response.json();
+
+  if (!data.success) {
+    throw new Error(data.errors?.[0]?.message || 'Failed to get video details');
+  }
+
+  return {
+    uid: data.result.uid,
+    status: data.result.status.state,
+    errorMessage: data.result.status.errorReasonText,
+    playbackId: data.result.uid, // In Cloudflare, the uid is also the playback ID
+    thumbnailUrl: data.result.thumbnail || null,
+    durationSeconds: data.result.duration ? Math.round(data.result.duration) : null,
+  };
+}
+
+// Delete a video
+export async function deleteVideo(uid: string): Promise<void> {
+  const response = await fetch(`${API_BASE}/${uid}`, {
+    method: 'DELETE',
+    headers: {
+      'Authorization': `Bearer ${CLOUDFLARE_API_TOKEN}`,
+    },
+  });
+
+  if (!response.ok) {
+    console.error('Failed to delete video:', uid);
+  }
+}
+
+// Get thumbnail URL for a video
+export function getThumbnailUrl(uid: string, options?: {
+  time?: string; // e.g., "1s", "5s"
+  width?: number;
+  height?: number;
+}): string {
+  const { time = '1s', width, height } = options || {};
+  let url = `https://customer-${CLOUDFLARE_ACCOUNT_ID}.cloudflarestream.com/${uid}/thumbnails/thumbnail.jpg?time=${time}`;
+  if (width) url += `&width=${width}`;
+  if (height) url += `&height=${height}`;
+  return url;
+}
