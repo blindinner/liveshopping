@@ -21,6 +21,8 @@ export async function GET(request: Request) {
   let containerElement = null;
   let videos = [];
   let activeVideoIndex = null;
+  let activeVideoElement = null;
+  let globalMuted = true; // Shared mute state across all videos
 
   const styles = document.createElement('style');
   styles.textContent = \`
@@ -85,11 +87,14 @@ export async function GET(request: Request) {
       display: flex;
       flex-direction: column;
       gap: 8px;
-      opacity: 0;
+      opacity: 1;
       transition: opacity 0.2s;
     }
-    .sv-video-container:hover .sv-controls,
-    .sv-video-container.sv-playing .sv-controls {
+    .sv-controls .sv-pause-btn {
+      opacity: 0;
+    }
+    .sv-video-container:hover .sv-controls .sv-pause-btn,
+    .sv-video-container.sv-playing .sv-controls .sv-pause-btn {
       opacity: 1;
     }
     .sv-control-btn {
@@ -279,13 +284,17 @@ export async function GET(request: Request) {
     const pauseBtn = item.querySelector('.sv-pause-btn');
 
     let videoElement = null;
-    let isMuted = true;
     let isPlaying = false;
 
-    function startVideo() {
-      if (isPlaying) return;
+    function updateMuteIcon() {
+      const mutedIcon = muteBtn.querySelector('.sv-icon-muted');
+      const unmutedIcon = muteBtn.querySelector('.sv-icon-unmuted');
+      mutedIcon.style.display = globalMuted ? '' : 'none';
+      unmutedIcon.style.display = globalMuted ? 'none' : '';
+    }
 
-      // Pause any other playing video
+    function startVideo() {
+      // Stop and reset any other playing video
       if (activeVideoIndex !== null && activeVideoIndex !== index) {
         const activeItem = containerElement.querySelector(\`.sv-item[data-index="\${activeVideoIndex}"]\`);
         if (activeItem) {
@@ -293,6 +302,7 @@ export async function GET(request: Request) {
           const activeVideo = activeContainer.querySelector('video');
           if (activeVideo) {
             activeVideo.pause();
+            activeVideo.currentTime = 0; // Reset to beginning
             activeVideo.remove();
           }
           activeContainer.classList.remove('sv-playing');
@@ -300,6 +310,9 @@ export async function GET(request: Request) {
           if (thumb) thumb.style.display = '';
         }
       }
+
+      // If already playing this video, do nothing
+      if (isPlaying) return;
 
       activeVideoIndex = index;
       const cfId = video.cloudflare_stream_id || video.cloudflare_playback_id;
@@ -309,7 +322,7 @@ export async function GET(request: Request) {
         videoElement.src = \`https://customer-\${cfAccountId}.cloudflarestream.com/\${cfId}/manifest/video.m3u8\`;
         videoElement.autoplay = true;
         videoElement.loop = true;
-        videoElement.muted = isMuted;
+        videoElement.muted = globalMuted;
         videoElement.playsInline = true;
         videoElement.style.cssText = 'width:100%;height:100%;object-fit:cover;';
 
@@ -319,8 +332,10 @@ export async function GET(request: Request) {
         container.insertBefore(videoElement, container.firstChild);
         container.classList.add('sv-playing');
         isPlaying = true;
+        activeVideoElement = videoElement;
 
         videoElement.play().catch(console.error);
+        updateMuteIcon();
       }
     }
 
@@ -333,15 +348,24 @@ export async function GET(request: Request) {
     }
 
     function toggleMute() {
-      isMuted = !isMuted;
-      if (videoElement) {
-        videoElement.muted = isMuted;
+      globalMuted = !globalMuted;
+      if (activeVideoElement) {
+        activeVideoElement.muted = globalMuted;
       }
-      const mutedIcon = muteBtn.querySelector('.sv-icon-muted');
-      const unmutedIcon = muteBtn.querySelector('.sv-icon-unmuted');
-      mutedIcon.style.display = isMuted ? '' : 'none';
-      unmutedIcon.style.display = isMuted ? 'none' : '';
+      // Update all mute icons
+      containerElement.querySelectorAll('.sv-mute-btn').forEach(btn => {
+        const mutedIcon = btn.querySelector('.sv-icon-muted');
+        const unmutedIcon = btn.querySelector('.sv-icon-unmuted');
+        mutedIcon.style.display = globalMuted ? '' : 'none';
+        unmutedIcon.style.display = globalMuted ? 'none' : '';
+      });
     }
+
+    // Click on video container to play
+    container.addEventListener('click', (e) => {
+      if (e.target.closest('.sv-control-btn')) return; // Ignore control button clicks
+      startVideo();
+    });
 
     playBtn.addEventListener('click', (e) => {
       e.stopPropagation();
@@ -361,6 +385,9 @@ export async function GET(request: Request) {
       e.stopPropagation();
       toggleMute();
     });
+
+    // Expose startVideo for autoplay
+    item.startVideo = startVideo;
 
     return item;
   }
@@ -396,12 +423,22 @@ export async function GET(request: Request) {
     const carousel = document.createElement('div');
     carousel.className = 'sv-carousel';
 
+    const items = [];
     videos.forEach((video, index) => {
-      carousel.appendChild(createVideoItem(video, index));
+      const item = createVideoItem(video, index);
+      items.push(item);
+      carousel.appendChild(item);
     });
 
     containerElement.appendChild(carousel);
     currentScript.parentNode.insertBefore(containerElement, currentScript.nextSibling);
+
+    // Autoplay first video (muted)
+    if (items.length > 0 && items[0].startVideo) {
+      setTimeout(() => {
+        items[0].startVideo();
+      }, 100);
+    }
   }
 
   loadVideos();
