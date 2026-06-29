@@ -70,6 +70,9 @@ export async function GET(request: Request) {
       height: 100%;
       object-fit: cover;
     }
+    .svp-thumbnail-video {
+      pointer-events: none;
+    }
 
 
     .svp-video-title {
@@ -177,11 +180,17 @@ export async function GET(request: Request) {
     const thumbnail = video.cover_image_url || video.thumbnail_url;
     const cfAccountId = '${process.env.NEXT_PUBLIC_CLOUDFLARE_ACCOUNT_ID || 'f83anpt0jiknxr1e'}';
 
+    const cfId = video.cloudflare_stream_id || video.cloudflare_playback_id;
+    const videoSrc = cfId ? \`https://customer-\${cfAccountId}.cloudflarestream.com/\${cfId}/manifest/video.m3u8\` : '';
+
     item.innerHTML = \`
-      <div class="svp-video-container" data-video-id="\${video.id}" data-cf-id="\${video.cloudflare_stream_id || ''}">
-        \${thumbnail ?
-          \`<img src="\${thumbnail}" alt="\${video.title}" class="svp-thumbnail">\` :
-          \`<div style="width:100%;height:100%;background:#333;"></div>\`
+      <div class="svp-video-container" data-video-id="\${video.id}" data-cf-id="\${cfId || ''}">
+        \${cfId ?
+          \`<video class="svp-thumbnail-video" src="\${videoSrc}" preload="metadata" muted playsinline></video>\` :
+          (thumbnail ?
+            \`<img src="\${thumbnail}" alt="\${video.title}" class="svp-thumbnail">\` :
+            \`<div style="width:100%;height:100%;background:#333;"></div>\`
+          )
         }
         <div class="svp-controls">
           <button class="svp-control-btn svp-expand-btn" aria-label="Expand">
@@ -200,6 +209,8 @@ export async function GET(request: Request) {
     let videoElement = null;
     let isPlaying = false;
 
+    const thumbnailVideo = item.querySelector('.svp-thumbnail-video');
+
     function startVideo() {
       if (isPlaying) return;
 
@@ -208,10 +219,10 @@ export async function GET(request: Request) {
         const activeItem = containerElement.querySelector(\`.svp-item[data-index="\${activeVideoIndex}"]\`);
         if (activeItem) {
           const activeContainer = activeItem.querySelector('.svp-video-container');
-          const activeVideo = activeContainer.querySelector('video');
-          if (activeVideo) {
-            activeVideo.pause();
-            activeVideo.remove();
+          const activeThumbnailVideo = activeItem.querySelector('.svp-thumbnail-video');
+          if (activeThumbnailVideo) {
+            activeThumbnailVideo.pause();
+            activeThumbnailVideo.currentTime = 0;
           }
           activeContainer.classList.remove('svp-playing');
           const thumb = activeItem.querySelector('.svp-thumbnail');
@@ -220,25 +231,14 @@ export async function GET(request: Request) {
       }
 
       activeVideoIndex = index;
-      const cfId = video.cloudflare_stream_id || video.cloudflare_playback_id;
 
-      if (cfId) {
-        videoElement = document.createElement('video');
-        videoElement.src = \`https://customer-\${cfAccountId}.cloudflarestream.com/\${cfId}/manifest/video.m3u8\`;
-        videoElement.autoplay = true;
-        videoElement.loop = true;
-        videoElement.muted = true;
-        videoElement.playsInline = true;
-        videoElement.style.cssText = 'width:100%;height:100%;object-fit:cover;';
-
-        const thumb = container.querySelector('.svp-thumbnail');
-        if (thumb) thumb.style.display = 'none';
-
-        container.insertBefore(videoElement, container.firstChild);
+      // Play the thumbnail video
+      if (thumbnailVideo) {
+        thumbnailVideo.loop = true;
+        thumbnailVideo.muted = true;
         container.classList.add('svp-playing');
         isPlaying = true;
-
-        videoElement.play().catch(console.error);
+        thumbnailVideo.play().catch(console.error);
       }
     }
 
