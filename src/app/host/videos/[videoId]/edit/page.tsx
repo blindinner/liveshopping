@@ -22,6 +22,7 @@ export default function EditVideoPage({ params }: { params: Promise<{ videoId: s
   const [isCheckingStatus, setIsCheckingStatus] = useState(false);
   const [isPublishing, setIsPublishing] = useState(false);
   const [copied, setCopied] = useState(false);
+  const [embedType, setEmbedType] = useState<'floating' | 'inline' | 'pdp'>('floating');
 
   const router = useRouter();
 
@@ -132,8 +133,66 @@ export default function EditVideoPage({ params }: { params: Promise<{ videoId: s
 
   const getEmbedCode = () => {
     const baseUrl = typeof window !== 'undefined' ? window.location.origin : '';
-    return `<iframe src="${baseUrl}/embed/video/${videoId}" width="400" height="712" frameborder="0" allow="autoplay; fullscreen" style="border-radius: 12px;"></iframe>`;
+
+    switch (embedType) {
+      case 'floating':
+        return `<script
+  src="${baseUrl}/widgets/floating.js"
+  data-brand-id="${brandId}"
+  data-position="bottom-right"
+></script>`;
+      case 'pdp':
+        return `<script
+  src="${baseUrl}/widgets/pdp.js"
+  data-video-id="${videoId}"
+  data-autoplay="true"
+  data-max-width="400px"
+></script>`;
+      case 'inline':
+      default:
+        return `<iframe
+  src="${baseUrl}/embed/video/${videoId}"
+  width="400"
+  height="712"
+  frameborder="0"
+  allow="autoplay; fullscreen"
+  style="border-radius: 12px;"
+></iframe>`;
+    }
   };
+
+  const embedOptions = [
+    {
+      type: 'floating' as const,
+      label: 'Floating Bubble',
+      description: 'Floats in corner, expands on click. Shows all your videos.',
+      icon: (
+        <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+          <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={1.5} d="M8 12h.01M12 12h.01M16 12h.01M21 12c0 4.418-4.03 8-9 8a9.863 9.863 0 01-4.255-.949L3 20l1.395-3.72C3.512 15.042 3 13.574 3 12c0-4.418 4.03-8 9-8s9 3.582 9 8z" />
+        </svg>
+      ),
+    },
+    {
+      type: 'pdp' as const,
+      label: 'Single Video',
+      description: 'Embeds this specific video inline on the page.',
+      icon: (
+        <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+          <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={1.5} d="M15 10l4.553-2.276A1 1 0 0121 8.618v6.764a1 1 0 01-1.447.894L15 14M5 18h8a2 2 0 002-2V8a2 2 0 00-2-2H5a2 2 0 00-2 2v8a2 2 0 002 2z" />
+        </svg>
+      ),
+    },
+    {
+      type: 'inline' as const,
+      label: 'Iframe',
+      description: 'Raw iframe embed. Place exactly where needed.',
+      icon: (
+        <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+          <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={1.5} d="M10 20l4-16m4 4l4 4-4 4M6 16l-4-4 4-4" />
+        </svg>
+      ),
+    },
+  ];
 
   const copyEmbedCode = () => {
     navigator.clipboard.writeText(getEmbedCode());
@@ -296,12 +355,37 @@ export default function EditVideoPage({ params }: { params: Promise<{ videoId: s
             {video.status === 'ready' && (
               <section className="bg-white/5 rounded-2xl p-4">
                 <h2 className="text-base font-semibold text-white mb-4">Embed Code</h2>
+
+                {/* Embed Type Selector */}
+                <div className="grid grid-cols-3 gap-2 mb-4">
+                  {embedOptions.map((option) => (
+                    <button
+                      key={option.type}
+                      onClick={() => setEmbedType(option.type)}
+                      className={`p-3 rounded-xl border transition-all text-left ${
+                        embedType === option.type
+                          ? 'bg-pink-500/20 border-pink-500/50'
+                          : 'bg-black/20 border-white/10 hover:bg-white/5'
+                      }`}
+                    >
+                      <div className={`mb-1.5 ${embedType === option.type ? 'text-pink-400' : 'text-white/50'}`}>
+                        {option.icon}
+                      </div>
+                      <p className={`text-xs font-medium ${embedType === option.type ? 'text-white' : 'text-white/70'}`}>
+                        {option.label}
+                      </p>
+                    </button>
+                  ))}
+                </div>
+
+                {/* Description */}
                 <p className="text-white/50 text-sm mb-4">
-                  Copy this code and paste it into your website to embed this shoppable video.
+                  {embedOptions.find(o => o.type === embedType)?.description}
                 </p>
 
+                {/* Code Block */}
                 <div className="relative">
-                  <pre className="bg-black/30 rounded-xl p-4 text-sm text-white/70 overflow-x-auto border border-white/10">
+                  <pre className="bg-black/30 rounded-xl p-4 text-sm text-white/70 overflow-x-auto border border-white/10 whitespace-pre-wrap">
                     {getEmbedCode()}
                   </pre>
                   <button
