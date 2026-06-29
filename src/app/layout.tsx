@@ -1,15 +1,26 @@
 import type { Metadata, Viewport } from 'next';
-import { Inter } from 'next/font/google';
+import { Montserrat } from 'next/font/google';
 import './globals.css';
 
-const inter = Inter({
-  variable: '--font-inter',
+const montserrat = Montserrat({
+  variable: '--font-montserrat',
   subsets: ['latin'],
+  weight: ['400', '500', '600', '700', '800'],
 });
 
 export const metadata: Metadata = {
-  title: 'Live Shopping',
-  description: 'Watch live, shop now',
+  title: {
+    default: 'ShoppableVids | Video Commerce Platform',
+    template: '%s | ShoppableVids',
+  },
+  description:
+    'Turn live streams into sales with one-click checkout. Shoppable videos, embeddable widgets, and real-time analytics for e-commerce.',
+  metadataBase: new URL('https://shoppablevids.com'),
+  icons: {
+    icon: '/favicon.svg',
+    shortcut: '/favicon.svg',
+    apple: '/favicon.svg',
+  },
 };
 
 export const viewport: Viewport = {
@@ -26,8 +37,8 @@ export default function RootLayout({
   children: React.ReactNode;
 }>) {
   return (
-    <html lang="en" dir="ltr" className={`${inter.variable} h-full`}>
-      <body className="min-h-full bg-black text-white font-sans antialiased">
+    <html lang="en" dir="ltr" className={`${montserrat.variable} h-full`}>
+      <body className="min-h-full font-sans antialiased">
         {children}
       </body>
     </html>

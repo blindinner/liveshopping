@@ -224,10 +224,10 @@ function LoginForm() {
       </div>
 
       <button
-        onClick={() => router.push('/')}
+        onClick={() => router.push('/shows')}
         className="mt-8 w-full text-center text-white/50 hover:text-white/70"
       >
-        Back to Home
+        Browse Shows
       </button>
     </div>
   );

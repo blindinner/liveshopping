@@ -1,0 +1,227 @@
+<!DOCTYPE html>
+<html>
+<head>
+  <title>ShoppableVids Logo Variations</title>
+  <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&family=Playfair+Display:wght@500;600;700&display=swap" rel="stylesheet">
+  <style>
+    body {
+      font-family: 'Inter', sans-serif;
+      background: #f5f5f5;
+      padding: 40px;
+      margin: 0;
+    }
+    .grid {
+      display: grid;
+      grid-template-columns: repeat(2, 1fr);
+      gap: 40px;
+      max-width: 1200px;
+      margin: 0 auto;
+    }
+    .card {
+      background: white;
+      border-radius: 16px;
+      padding: 60px 40px;
+      display: flex;
+      flex-direction: column;
+      align-items: center;
+      justify-content: center;
+      min-height: 200px;
+      box-shadow: 0 1px 3px rgba(0,0,0,0.1);
+    }
+    .card.dark {
+      background: #111;
+    }
+    .label {
+      margin-top: 24px;
+      font-size: 12px;
+      color: #999;
+      text-transform: uppercase;
+      letter-spacing: 1px;
+    }
+    h1 {
+      text-align: center;
+      margin-bottom: 40px;
+      color: #333;
+    }
+    .section-title {
+      grid-column: span 2;
+      font-size: 14px;
+      color: #666;
+      text-transform: uppercase;
+      letter-spacing: 2px;
+      margin-top: 20px;
+      border-bottom: 1px solid #ddd;
+      padding-bottom: 10px;
+    }
+  </style>
+</head>
+<body>
+  <h1>ShoppableVids Logo Variations</h1>
+
+  <div class="grid">
+
+    <div class="section-title">Option 1: Two-Tone Split</div>
+
+    <div class="card">
+      <svg width="320" height="50" viewBox="0 0 320 50">
+        <text x="0" y="38" font-family="Inter" font-size="36" font-weight="700" fill="#111">shoppable</text>
+        <text x="195" y="38" font-family="Inter" font-size="36" font-weight="500" fill="#ec4899">vids</text>
+      </svg>
+      <div class="label">Light background</div>
+    </div>
+
+    <div class="card dark">
+      <svg width="320" height="50" viewBox="0 0 320 50">
+        <text x="0" y="38" font-family="Inter" font-size="36" font-weight="700" fill="#ffffff">shoppable</text>
+        <text x="195" y="38" font-family="Inter" font-size="36" font-weight="500" fill="#ec4899">vids</text>
+      </svg>
+      <div class="label" style="color:#666">Dark background</div>
+    </div>
+
+    <div class="section-title">Option 2: Gradient on "Vids"</div>
+
+    <div class="card">
+      <svg width="320" height="50" viewBox="0 0 320 50">
+        <defs>
+          <linearGradient id="pinkGrad" x1="0%" y1="0%" x2="100%" y2="0%">
+            <stop offset="0%" style="stop-color:#ec4899"/>
+            <stop offset="100%" style="stop-color:#f472b6"/>
+          </linearGradient>
+        </defs>
+        <text x="0" y="38" font-family="Inter" font-size="36" font-weight="600" fill="#111">shoppable</text>
+        <text x="195" y="38" font-family="Inter" font-size="36" font-weight="600" fill="url(#pinkGrad)">vids</text>
+      </svg>
+      <div class="label">With gradient</div>
+    </div>
+
+    <div class="card dark">
+      <svg width="320" height="50" viewBox="0 0 320 50">
+        <defs>
+          <linearGradient id="pinkGrad2" x1="0%" y1="0%" x2="100%" y2="0%">
+            <stop offset="0%" style="stop-color:#ec4899"/>
+            <stop offset="100%" style="stop-color:#f472b6"/>
+          </linearGradient>
+        </defs>
+        <text x="0" y="38" font-family="Inter" font-size="36" font-weight="600" fill="#ffffff">shoppable</text>
+        <text x="195" y="38" font-family="Inter" font-size="36" font-weight="600" fill="url(#pinkGrad2)">vids</text>
+      </svg>
+      <div class="label" style="color:#666">Dark + gradient</div>
+    </div>
+
+    <div class="section-title">Option 3: With Play Icon</div>
+
+    <div class="card">
+      <svg width="360" height="50" viewBox="0 0 360 50">
+        <circle cx="20" cy="25" r="18" fill="#ec4899"/>
+        <path d="M16 17 L28 25 L16 33 Z" fill="white"/>
+        <text x="50" y="38" font-family="Inter" font-size="36" font-weight="600" fill="#111">shoppable</text>
+        <text x="245" y="38" font-family="Inter" font-size="36" font-weight="600" fill="#ec4899">vids</text>
+      </svg>
+      <div class="label">With play icon</div>
+    </div>
+
+    <div class="card dark">
+      <svg width="360" height="50" viewBox="0 0 360 50">
+        <circle cx="20" cy="25" r="18" fill="#ec4899"/>
+        <path d="M16 17 L28 25 L16 33 Z" fill="white"/>
+        <text x="50" y="38" font-family="Inter" font-size="36" font-weight="600" fill="#fff">shoppable</text>
+        <text x="245" y="38" font-family="Inter" font-size="36" font-weight="600" fill="#ec4899">vids</text>
+      </svg>
+      <div class="label" style="color:#666">Dark + play icon</div>
+    </div>
+
+    <div class="section-title">Option 4: Dot Separator</div>
+
+    <div class="card">
+      <svg width="340" height="50" viewBox="0 0 340 50">
+        <text x="0" y="38" font-family="Inter" font-size="36" font-weight="600" fill="#111">shoppable</text>
+        <circle cx="207" cy="30" r="4" fill="#ec4899"/>
+        <text x="222" y="38" font-family="Inter" font-size="36" font-weight="600" fill="#111">vids</text>
+      </svg>
+      <div class="label">Dot separator</div>
+    </div>
+
+    <div class="card dark">
+      <svg width="340" height="50" viewBox="0 0 340 50">
+        <text x="0" y="38" font-family="Inter" font-size="36" font-weight="600" fill="#fff">shoppable</text>
+        <circle cx="207" cy="30" r="4" fill="#ec4899"/>
+        <text x="222" y="38" font-family="Inter" font-size="36" font-weight="600" fill="#fff">vids</text>
+      </svg>
+      <div class="label" style="color:#666">Dark + dot</div>
+    </div>
+
+    <div class="section-title">Option 5: Logomark Only (for favicons/icons)</div>
+
+    <div class="card">
+      <div style="display: flex; gap: 40px; align-items: center;">
+        <!-- Play + Cart -->
+        <svg width="60" height="60" viewBox="0 0 60 60">
+          <circle cx="30" cy="30" r="28" fill="#ec4899"/>
+          <path d="M24 20 L42 30 L24 40 Z" fill="white"/>
+          <circle cx="46" cy="46" r="12" fill="#111"/>
+          <path d="M42 42 L50 42 L49 48 L43 48 Z" fill="white" stroke="white" stroke-width="1"/>
+          <circle cx="44" cy="50" r="1.5" fill="white"/>
+          <circle cx="48" cy="50" r="1.5" fill="white"/>
+        </svg>
+
+        <!-- SV Monogram -->
+        <svg width="60" height="60" viewBox="0 0 60 60">
+          <rect x="0" y="0" width="60" height="60" rx="12" fill="#ec4899"/>
+          <text x="8" y="44" font-family="Inter" font-size="32" font-weight="700" fill="white">SV</text>
+        </svg>
+
+        <!-- Simple Play -->
+        <svg width="60" height="60" viewBox="0 0 60 60">
+          <rect x="0" y="0" width="60" height="60" rx="12" fill="#ec4899"/>
+          <path d="M22 18 L44 30 L22 42 Z" fill="white"/>
+        </svg>
+      </div>
+      <div class="label">Icon options</div>
+    </div>
+
+    <div class="card dark">
+      <div style="display: flex; gap: 40px; align-items: center;">
+        <!-- Play + Cart -->
+        <svg width="60" height="60" viewBox="0 0 60 60">
+          <circle cx="30" cy="30" r="28" fill="#ec4899"/>
+          <path d="M24 20 L42 30 L24 40 Z" fill="white"/>
+          <circle cx="46" cy="46" r="12" fill="white"/>
+          <path d="M42 42 L50 42 L49 48 L43 48 Z" fill="#111" stroke="#111" stroke-width="1"/>
+          <circle cx="44" cy="50" r="1.5" fill="#111"/>
+          <circle cx="48" cy="50" r="1.5" fill="#111"/>
+        </svg>
+
+        <!-- SV Monogram -->
+        <svg width="60" height="60" viewBox="0 0 60 60">
+          <rect x="0" y="0" width="60" height="60" rx="12" fill="#ec4899"/>
+          <text x="8" y="44" font-family="Inter" font-size="32" font-weight="700" fill="white">SV</text>
+        </svg>
+
+        <!-- Simple Play -->
+        <svg width="60" height="60" viewBox="0 0 60 60">
+          <rect x="0" y="0" width="60" height="60" rx="12" fill="#ec4899"/>
+          <path d="M22 18 L44 30 L22 42 Z" fill="white"/>
+        </svg>
+      </div>
+      <div class="label" style="color:#666">Icons on dark</div>
+    </div>
+
+    <div class="section-title">Option 6: Full Pink</div>
+
+    <div class="card">
+      <svg width="320" height="50" viewBox="0 0 320 50">
+        <text x="0" y="38" font-family="Inter" font-size="36" font-weight="700" fill="#ec4899">shoppablevids</text>
+      </svg>
+      <div class="label">All pink</div>
+    </div>
+
+    <div class="card dark">
+      <svg width="320" height="50" viewBox="0 0 320 50">
+        <text x="0" y="38" font-family="Inter" font-size="36" font-weight="700" fill="#ec4899">shoppablevids</text>
+      </svg>
+      <div class="label" style="color:#666">All pink on dark</div>
+    </div>
+
+  </div>
+</body>
+</html>

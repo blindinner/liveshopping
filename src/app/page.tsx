@@ -1,149 +1,229 @@
-import Link from 'next/link';
-import { createClient } from '@/lib/supabase/server';
-import { Badge } from '@/components/ui/Badge';
-import type { Show } from '@/types/database';
+import type { Metadata } from 'next';
+import {
+  Header,
+  Hero,
+  SolutionIntro,
+  WhatIsLiveShopping,
+  WhatIsShoppableVideo,
+  ProductsBridge,
+  Problem,
+  Benefits,
+  Results,
+  Features,
+  UseCases,
+  HowItWorks,
+  Integrations,
+  FAQ,
+  FinalCTA,
+  Footer,
+} from '@/components/landing';
 
-export default async function HomePage() {
-  const supabase = await createClient();
+export const metadata: Metadata = {
+  title: 'Live Shopping Platform | Turn Video Into Sales',
+  description:
+    'The live shopping platform that lets your customers buy without leaving the stream. One-click checkout, shoppable videos, and embeddable widgets for e-commerce.',
+  keywords: [
+    'live shopping',
+    'shoppable video',
+    'live selling',
+    'video commerce',
+    'live commerce',
+    'shoppable livestream',
+    'ecommerce video',
+    'live selling platform',
+    'video shopping',
+    'livestream shopping',
+  ],
+  openGraph: {
+    title: 'Live Shopping | Video Commerce Platform',
+    description:
+      'Turn your live streams into sales. One-click checkout, shoppable videos, and embeddable widgets.',
+    type: 'website',
+    locale: 'en_US',
+  },
+  twitter: {
+    card: 'summary_large_image',
+    title: 'Live Shopping | Video Commerce Platform',
+    description:
+      'Turn your live streams into sales. One-click checkout, shoppable videos, and embeddable widgets.',
+  },
+  robots: {
+    index: true,
+    follow: true,
+  },
+};
 
-  const { data: shows } = await supabase
-    .from('shows')
-    .select('*')
-    .in('status', ['scheduled', 'live'])
-    .order('scheduled_at', { ascending: true });
+// JSON-LD Structured Data for SEO and AI discoverability
+const jsonLd = {
+  '@context': 'https://schema.org',
+  '@graph': [
+    {
+      '@type': 'SoftwareApplication',
+      name: 'Live Shopping',
+      applicationCategory: 'BusinessApplication',
+      operatingSystem: 'Web',
+      description:
+        'Live shopping platform for e-commerce. Enable one-click checkout during live streams, create shoppable videos, and embed video widgets on your website.',
+      offers: {
+        '@type': 'Offer',
+        price: '0',
+        priceCurrency: 'USD',
+        description: 'Free pilot available',
+      },
+      featureList: [
+        'Live video streaming with in-stream checkout',
+        'Shoppable video with product tagging',
+        'Embeddable video widgets',
+        'E-commerce platform integrations',
+        'Real-time analytics',
+        'Browser and mobile streaming',
+      ],
+    },
+    {
+      '@type': 'FAQPage',
+      mainEntity: [
+        {
+          '@type': 'Question',
+          name: 'What is live shopping?',
+          acceptedAnswer: {
+            '@type': 'Answer',
+            text: 'Live shopping (also called live commerce or livestream shopping) is a sales format where brands broadcast live video while showcasing products that viewers can purchase in real-time. It combines the engagement of live video with the convenience of e-commerce, allowing viewers to ask questions, see product demonstrations, and checkout without leaving the stream.',
+          },
+        },
+        {
+          '@type': 'Question',
+          name: 'What is shoppable video?',
+          acceptedAnswer: {
+            '@type': 'Answer',
+            text: 'Shoppable video is any video content that allows viewers to purchase products directly within the video player. Products are tagged at specific moments, and viewers can click to add items to their cart without pausing or leaving the video. It can be live (livestream shopping) or on-demand (pre-recorded videos with product tags).',
+          },
+        },
+        {
+          '@type': 'Question',
+          name: 'What is video commerce?',
+          acceptedAnswer: {
+            '@type': 'Answer',
+            text: 'Video commerce is the broader category that includes live shopping, shoppable videos, and any video-based selling experience. It bridges online and in-store shopping by allowing brands to showcase products dynamically while maintaining a personal connection with their audience.',
+          },
+        },
+        {
+          '@type': 'Question',
+          name: 'How is live shopping different from going live on social platforms?',
+          acceptedAnswer: {
+            '@type': 'Answer',
+            text: 'Unlike social platforms, live shopping on your own site lets you own the customer relationship and data. Viewers can checkout directly without leaving the stream, you control the experience end-to-end, and you capture first-party data. Social platforms take a cut of sales and limit your access to customer information.',
+          },
+        },
+        {
+          '@type': 'Question',
+          name: 'How does live shopping increase conversion rates?',
+          acceptedAnswer: {
+            '@type': 'Answer',
+            text: 'Live shopping converts at up to 10x the rate of traditional e-commerce. Real-time product demonstrations build trust, live Q&A removes purchase hesitation, and the urgency of live events drives impulse buying. One-click checkout reduces cart abandonment by capturing customers at peak intent.',
+          },
+        },
+        {
+          '@type': 'Question',
+          name: 'What kind of ROI can I expect from live shopping?',
+          acceptedAnswer: {
+            '@type': 'Answer',
+            text: 'Brands typically see higher conversion rates (up to 10x), increased average order value (30%+), lower return rates (50% fewer), and improved customer loyalty. Detailed analytics help track exactly how video commerce impacts revenue.',
+          },
+        },
+        {
+          '@type': 'Question',
+          name: 'Can shows be replayed and remain shoppable?',
+          acceptedAnswer: {
+            '@type': 'Answer',
+            text: 'Yes. All live shows automatically become shoppable replays. The products featured during the live event stay tagged at their original timestamps, so viewers who missed the live show can still shop directly from the replay.',
+          },
+        },
+        {
+          '@type': 'Question',
+          name: 'Will live shopping slow down my website?',
+          acceptedAnswer: {
+            '@type': 'Answer',
+            text: 'No. Video players and widgets are optimized for performance and load asynchronously. They do not block page load or impact Core Web Vitals. Adaptive streaming delivers the best quality for each viewer\'s connection.',
+          },
+        },
+        {
+          '@type': 'Question',
+          name: 'Which e-commerce platforms integrate with live shopping?',
+          acceptedAnswer: {
+            '@type': 'Answer',
+            text: 'Live Shopping integrates with major e-commerce platforms including Shopify, WooCommerce, BigCommerce, Magento, and custom platforms via API. Products, inventory, and checkout sync automatically.',
+          },
+        },
+        {
+          '@type': 'Question',
+          name: 'Can I source videos from Instagram and TikTok?',
+          acceptedAnswer: {
+            '@type': 'Answer',
+            text: 'Yes. You can import videos from Instagram and TikTok to create shoppable versions on your site. This lets you repurpose social content while owning the shopping experience and customer data.',
+          },
+        },
+        {
+          '@type': 'Question',
+          name: 'Do I own the customer data collected during live events?',
+          acceptedAnswer: {
+            '@type': 'Answer',
+            text: 'Yes. You own 100% of the first-party data collected through your live shows and shoppable videos. This includes viewer behavior, engagement metrics, and any information they provide. Data is never sold or shared.',
+          },
+        },
+        {
+          '@type': 'Question',
+          name: 'What industries use live shopping?',
+          acceptedAnswer: {
+            '@type': 'Answer',
+            text: 'Live shopping works across all product categories—fashion, beauty, electronics, home goods, food and beverage, fitness, automotive, and more. Any product that benefits from demonstration or explanation works well.',
+          },
+        },
+        {
+          '@type': 'Question',
+          name: 'Is live shopping suitable for small businesses?',
+          acceptedAnswer: {
+            '@type': 'Answer',
+            text: 'Yes. Live shopping scales to any size. Small brands often see the biggest impact because it helps them compete with larger retailers by providing personalized, engaging experiences that build loyal communities.',
+          },
+        },
+        {
+          '@type': 'Question',
+          name: 'How often should brands run live shows?',
+          acceptedAnswer: {
+            '@type': 'Answer',
+            text: 'Consistency matters more than frequency. Start with weekly or bi-weekly shows at a regular time. This trains your audience to tune in. Many successful brands do 1-2 shows per week, plus special events for launches.',
+          },
+        },
+      ],
+    },
+  ],
+};
 
-  const liveShows = (shows as Show[] | null)?.filter((s) => s.status === 'live') || [];
-  const upcomingShows = (shows as Show[] | null)?.filter((s) => s.status === 'scheduled') || [];
-
-  const formatDate = (date: string) => {
-    return new Intl.DateTimeFormat('en-US', {
-      weekday: 'short',
-      day: 'numeric',
-      month: 'short',
-      hour: '2-digit',
-      minute: '2-digit',
-    }).format(new Date(date));
-  };
-
+export default function HomePage() {
   return (
-    <main className="min-h-screen bg-gradient-to-b from-gray-900 to-black">
-      {/* Header */}
-      <header className="p-4 flex items-center justify-between">
-        <h1 className="text-xl font-bold text-white">Live Shopping</h1>
-        <Link
-          href="/login"
-          className="text-sm text-white/70 hover:text-white"
-        >
-          Host Login
-        </Link>
-      </header>
-
-      {/* Live Now Section */}
-      {liveShows.length > 0 && (
-        <section className="px-4 py-6">
-          <h2 className="text-lg font-semibold text-white mb-4 flex items-center gap-2">
-            <span className="relative flex h-3 w-3">
-              <span className="animate-ping absolute inline-flex h-full w-full rounded-full bg-red-500 opacity-75" />
-              <span className="relative inline-flex rounded-full h-3 w-3 bg-red-500" />
-            </span>
-            Live Now
-          </h2>
-          <div className="space-y-4">
-            {liveShows.map((show) => (
-              <Link
-                key={show.id}
-                href={`/live/${show.id}`}
-                className="block bg-gradient-to-r from-pink-500/20 to-purple-500/20 rounded-2xl p-4 border border-pink-500/30 hover:border-pink-500/50 transition-colors"
-              >
-                <div className="flex items-start justify-between">
-                  <div>
-                    <Badge variant="live" pulse>
-                      LIVE
-                    </Badge>
-                    <h3 className="text-white font-semibold mt-2">
-                      {show.title}
-                    </h3>
-                  </div>
-                  <svg
-                    className="w-6 h-6 text-white/50"
-                    fill="none"
-                    stroke="currentColor"
-                    viewBox="0 0 24 24"
-                  >
-                    <path
-                      strokeLinecap="round"
-                      strokeLinejoin="round"
-                      strokeWidth={2}
-                      d="M9 5l7 7-7 7"
-                    />
-                  </svg>
-                </div>
-              </Link>
-            ))}
-          </div>
-        </section>
-      )}
-
-      {/* Upcoming Shows */}
-      <section className="px-4 py-6">
-        <h2 className="text-lg font-semibold text-white mb-4">
-          Upcoming Shows
-        </h2>
-        {upcomingShows.length === 0 ? (
-          <div className="text-center py-12 text-white/50">
-            <svg
-              className="w-16 h-16 mx-auto mb-4"
-              fill="none"
-              stroke="currentColor"
-              viewBox="0 0 24 24"
-            >
-              <path
-                strokeLinecap="round"
-                strokeLinejoin="round"
-                strokeWidth={1.5}
-                d="M15 10l4.553-2.276A1 1 0 0121 8.618v6.764a1 1 0 01-1.447.894L15 14M5 18h8a2 2 0 002-2V8a2 2 0 00-2-2H5a2 2 0 00-2 2v8a2 2 0 002 2z"
-              />
-            </svg>
-            <p>No upcoming shows scheduled</p>
-            <p className="text-sm mt-1">Check back soon!</p>
-          </div>
-        ) : (
-          <div className="space-y-3">
-            {upcomingShows.map((show) => (
-              <Link
-                key={show.id}
-                href={`/live/${show.id}`}
-                className="block bg-white/5 rounded-xl p-4 hover:bg-white/10 transition-colors"
-              >
-                <div className="flex items-center justify-between">
-                  <div>
-                    <Badge variant="scheduled">Scheduled</Badge>
-                    <h3 className="text-white font-medium mt-2">
-                      {show.title}
-                    </h3>
-                    <p className="text-white/60 text-sm mt-1">
-                      {formatDate(show.scheduled_at)}
-                    </p>
-                  </div>
-                  <svg
-                    className="w-5 h-5 text-white/40"
-                    fill="none"
-                    stroke="currentColor"
-                    viewBox="0 0 24 24"
-                  >
-                    <path
-                      strokeLinecap="round"
-                      strokeLinejoin="round"
-                      strokeWidth={2}
-                      d="M9 5l7 7-7 7"
-                    />
-                  </svg>
-                </div>
-              </Link>
-            ))}
-          </div>
-        )}
-      </section>
-    </main>
+    <>
+      <script
+        type="application/ld+json"
+        dangerouslySetInnerHTML={{ __html: JSON.stringify(jsonLd) }}
+      />
+      <main className="min-h-screen bg-white">
+        <Header />
+        <Hero />
+        <SolutionIntro />
+        <WhatIsLiveShopping />
+        <WhatIsShoppableVideo />
+        <ProductsBridge />
+        <Problem />
+        <Benefits />
+        <Results />
+        <Features />
+        <UseCases />
+        <HowItWorks />
+        <Integrations />
+        <FAQ />
+        <FinalCTA />
+        <Footer />
+      </main>
+    </>
   );
 }
