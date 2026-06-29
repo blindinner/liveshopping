@@ -282,6 +282,9 @@ export async function GET(request: Request) {
       }
     });
 
+    // Expose startVideo for autoplay
+    item.startVideo = startVideo;
+
     return item;
   }
 
@@ -316,12 +319,22 @@ export async function GET(request: Request) {
     const carousel = document.createElement('div');
     carousel.className = 'svp-carousel';
 
+    const items = [];
     videos.forEach((video, index) => {
-      carousel.appendChild(createVideoItem(video, index));
+      const item = createVideoItem(video, index);
+      items.push(item);
+      carousel.appendChild(item);
     });
 
     containerElement.appendChild(carousel);
     currentScript.parentNode.insertBefore(containerElement, currentScript.nextSibling);
+
+    // Autoplay first video (muted)
+    if (items.length > 0 && items[0].startVideo) {
+      setTimeout(() => {
+        items[0].startVideo();
+      }, 100);
+    }
   }
 
   loadVideos();
