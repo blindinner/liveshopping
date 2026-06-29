@@ -22,11 +22,20 @@ export async function GET(
     const { shopifyProductId } = await params;
     const supabase = await createClient();
 
-    // First, find the product by Shopify product ID
+    // Handle both numeric ID (from Shopify Liquid) and full GraphQL ID formats
+    // Shopify Liquid {{ product.id }} returns: 7654321098765
+    // Shopify GraphQL API returns: gid://shopify/Product/7654321098765
+    const numericId = shopifyProductId.replace('gid://shopify/Product/', '');
+    const graphqlId = shopifyProductId.startsWith('gid://')
+      ? shopifyProductId
+      : `gid://shopify/Product/${shopifyProductId}`;
+
+    // Try to find the product by either format
     const { data: product, error: productError } = await supabase
       .from('products')
       .select('id')
-      .eq('shopify_product_id', shopifyProductId)
+      .or(`shopify_product_id.eq.${numericId},shopify_product_id.eq.${graphqlId}`)
+      .limit(1)
       .single();
 
     if (productError || !product) {

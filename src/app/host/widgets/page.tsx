@@ -110,9 +110,10 @@ export default function WidgetsPage() {
 ></script>`;
 
       case 'product-carousel':
-        return `<script
+        return `<!-- Add this to your Shopify product template (e.g., sections/main-product.liquid) -->
+<script
   src="${baseUrl}/widgets/product-carousel.js"
-  data-shopify-product-id="${config.shopifyProductId || 'YOUR_PRODUCT_ID'}"
+  data-shopify-product-id="{{ product.id }}"
   data-title="${config.productCarouselTitle}"
 ></script>`;
 
@@ -384,17 +385,9 @@ export default function WidgetsPage() {
 
               {selectedWidget === 'product-carousel' && (
                 <>
-                  <div>
-                    <label className="block text-white/70 text-sm mb-1.5">Shopify Product ID</label>
-                    <input
-                      type="text"
-                      value={config.shopifyProductId}
-                      onChange={(e) => setConfig({ ...config, shopifyProductId: e.target.value })}
-                      placeholder="e.g., 7654321098765"
-                      className="w-full bg-black/30 text-white text-sm rounded-lg px-3 py-2 border border-white/10 focus:outline-none focus:ring-1 focus:ring-pink-500/50"
-                    />
-                    <p className="text-white/40 text-xs mt-1">
-                      Find this in Shopify Admin → Products → Select product → Check URL for the ID
+                  <div className="bg-pink-500/10 border border-pink-500/20 rounded-lg p-3">
+                    <p className="text-pink-300 text-sm">
+                      This widget automatically shows videos linked to each product. Just add the code once to your Shopify product template.
                     </p>
                   </div>
                   <div>
@@ -534,25 +527,25 @@ export default function WidgetsPage() {
                     <svg className="w-4 h-4 mt-0.5 text-pink-400 shrink-0" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                       <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M5 13l4 4L19 7" />
                     </svg>
-                    Shows all videos tagged with this product
+                    Automatically shows videos you linked to each product
                   </li>
                   <li className="flex items-start gap-2">
                     <svg className="w-4 h-4 mt-0.5 text-pink-400 shrink-0" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                       <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M5 13l4 4L19 7" />
                     </svg>
-                    Click thumbnail to play, click again to expand
+                    Add once to Shopify theme, works for all products
                   </li>
                   <li className="flex items-start gap-2">
                     <svg className="w-4 h-4 mt-0.5 text-pink-400 shrink-0" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                       <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M5 13l4 4L19 7" />
                     </svg>
-                    Only displays if videos exist for this product
+                    Only displays if videos exist for the product
                   </li>
                   <li className="flex items-start gap-2">
                     <svg className="w-4 h-4 mt-0.5 text-pink-400 shrink-0" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                       <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M5 13l4 4L19 7" />
                     </svg>
-                    Use in Shopify product templates with {`{{ product.id }}`}
+                    Shopify fills in the product ID automatically
                   </li>
                 </ul>
               )}
