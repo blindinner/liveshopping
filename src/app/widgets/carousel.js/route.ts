@@ -73,6 +73,9 @@ export async function GET(request: Request) {
       height: 100%;
       object-fit: cover;
     }
+    .sv-thumbnail-video {
+      pointer-events: none;
+    }
     .sv-video-container iframe {
       width: 100%;
       height: 100%;
@@ -234,11 +237,17 @@ export async function GET(request: Request) {
     const thumbnail = video.cover_image_url || video.thumbnail_url;
     const cfAccountId = '${process.env.NEXT_PUBLIC_CLOUDFLARE_ACCOUNT_ID || 'f83anpt0jiknxr1e'}';
 
+    const cfId = video.cloudflare_stream_id || video.cloudflare_playback_id;
+    const videoSrc = cfId ? \`https://customer-\${cfAccountId}.cloudflarestream.com/\${cfId}/manifest/video.m3u8\` : '';
+
     item.innerHTML = \`
-      <div class="sv-video-container" data-video-id="\${video.id}" data-cf-id="\${video.cloudflare_stream_id || ''}">
-        \${thumbnail ?
-          \`<img src="\${thumbnail}" alt="\${video.title}" class="sv-thumbnail">\` :
-          \`<div style="width:100%;height:100%;background:#e5e5e5;"></div>\`
+      <div class="sv-video-container" data-video-id="\${video.id}" data-cf-id="\${cfId || ''}">
+        \${cfId ?
+          \`<video class="sv-thumbnail-video" src="\${videoSrc}" preload="metadata" muted playsinline></video>\` :
+          (thumbnail ?
+            \`<img src="\${thumbnail}" alt="\${video.title}" class="sv-thumbnail" onerror="this.style.display='none'">\` :
+            \`<div style="width:100%;height:100%;background:#e5e5e5;"></div>\`
+          )
         }
         <div class="sv-play-overlay">
           <button class="sv-play-btn" aria-label="Play">
@@ -283,8 +292,8 @@ export async function GET(request: Request) {
     const muteBtn = item.querySelector('.sv-mute-btn');
     const pauseBtn = item.querySelector('.sv-pause-btn');
 
-    let videoElement = null;
     let isPlaying = false;
+    const thumbnailVideo = item.querySelector('.sv-thumbnail-video');
 
     function updateMuteIcon() {
       const mutedIcon = muteBtn.querySelector('.sv-icon-muted');
@@ -299,15 +308,13 @@ export async function GET(request: Request) {
         const activeItem = containerElement.querySelector(\`.sv-item[data-index="\${activeVideoIndex}"]\`);
         if (activeItem) {
           const activeContainer = activeItem.querySelector('.sv-video-container');
-          const activeVideo = activeContainer.querySelector('video');
+          const activeVideo = activeContainer.querySelector('.sv-thumbnail-video');
           if (activeVideo) {
             activeVideo.pause();
             activeVideo.currentTime = 0; // Reset to beginning
-            activeVideo.remove();
+            activeVideo.muted = true;
           }
           activeContainer.classList.remove('sv-playing');
-          const thumb = activeItem.querySelector('.sv-thumbnail');
-          if (thumb) thumb.style.display = '';
         }
       }
 
@@ -315,33 +322,22 @@ export async function GET(request: Request) {
       if (isPlaying) return;
 
       activeVideoIndex = index;
-      const cfId = video.cloudflare_stream_id || video.cloudflare_playback_id;
 
-      if (cfId) {
-        videoElement = document.createElement('video');
-        videoElement.src = \`https://customer-\${cfAccountId}.cloudflarestream.com/\${cfId}/manifest/video.m3u8\`;
-        videoElement.autoplay = true;
-        videoElement.loop = true;
-        videoElement.muted = globalMuted;
-        videoElement.playsInline = true;
-        videoElement.style.cssText = 'width:100%;height:100%;object-fit:cover;';
-
-        const thumb = container.querySelector('.sv-thumbnail');
-        if (thumb) thumb.style.display = 'none';
-
-        container.insertBefore(videoElement, container.firstChild);
+      if (thumbnailVideo) {
+        thumbnailVideo.loop = true;
+        thumbnailVideo.muted = globalMuted;
         container.classList.add('sv-playing');
         isPlaying = true;
-        activeVideoElement = videoElement;
+        activeVideoElement = thumbnailVideo;
 
-        videoElement.play().catch(console.error);
+        thumbnailVideo.play().catch(console.error);
         updateMuteIcon();
       }
     }
 
     function pauseVideo() {
-      if (videoElement) {
-        videoElement.pause();
+      if (thumbnailVideo) {
+        thumbnailVideo.pause();
         container.classList.remove('sv-playing');
         isPlaying = false;
       }
