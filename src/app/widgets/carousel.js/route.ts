@@ -121,42 +121,6 @@ export async function GET(request: Request) {
       height: 18px;
     }
 
-    .sv-play-overlay {
-      position: absolute;
-      inset: 0;
-      display: flex;
-      align-items: center;
-      justify-content: center;
-      background: rgba(0,0,0,0.1);
-      transition: opacity 0.2s;
-    }
-    .sv-video-container.sv-playing .sv-play-overlay {
-      opacity: 0;
-      pointer-events: none;
-    }
-    .sv-play-btn {
-      width: 60px;
-      height: 60px;
-      background: rgba(255,255,255,0.95);
-      border: none;
-      border-radius: 50%;
-      cursor: pointer;
-      display: flex;
-      align-items: center;
-      justify-content: center;
-      box-shadow: 0 4px 12px rgba(0,0,0,0.15);
-      transition: transform 0.2s;
-    }
-    .sv-play-btn:hover {
-      transform: scale(1.1);
-    }
-    .sv-play-btn svg {
-      width: 24px;
-      height: 24px;
-      fill: #000;
-      margin-left: 3px;
-    }
-
     .sv-product-card {
       display: flex;
       align-items: center;
@@ -249,11 +213,6 @@ export async function GET(request: Request) {
             \`<div style="width:100%;height:100%;background:#e5e5e5;"></div>\`
           )
         }
-        <div class="sv-play-overlay">
-          <button class="sv-play-btn" aria-label="Play">
-            <svg viewBox="0 0 24 24"><path d="M8 5v14l11-7z"/></svg>
-          </button>
-        </div>
         <div class="sv-controls">
           <button class="sv-control-btn sv-mute-btn" aria-label="Mute">
             <svg class="sv-icon-muted" fill="none" stroke="currentColor" viewBox="0 0 24 24">
@@ -288,11 +247,8 @@ export async function GET(request: Request) {
     \`;
 
     const container = item.querySelector('.sv-video-container');
-    const playBtn = item.querySelector('.sv-play-btn');
     const muteBtn = item.querySelector('.sv-mute-btn');
     const pauseBtn = item.querySelector('.sv-pause-btn');
-
-    let isPlaying = false;
     const thumbnailVideo = item.querySelector('.sv-thumbnail-video');
 
     function updateMuteIcon() {
@@ -302,24 +258,23 @@ export async function GET(request: Request) {
       unmutedIcon.style.display = globalMuted ? 'none' : '';
     }
 
+    function stopVideo() {
+      if (thumbnailVideo) {
+        thumbnailVideo.pause();
+        thumbnailVideo.currentTime = 0;
+        thumbnailVideo.muted = true;
+      }
+      container.classList.remove('sv-playing');
+    }
+
     function startVideo() {
       // Stop and reset any other playing video
       if (activeVideoIndex !== null && activeVideoIndex !== index) {
         const activeItem = containerElement.querySelector(\`.sv-item[data-index="\${activeVideoIndex}"]\`);
-        if (activeItem) {
-          const activeContainer = activeItem.querySelector('.sv-video-container');
-          const activeVideo = activeContainer.querySelector('.sv-thumbnail-video');
-          if (activeVideo) {
-            activeVideo.pause();
-            activeVideo.currentTime = 0; // Reset to beginning
-            activeVideo.muted = true;
-          }
-          activeContainer.classList.remove('sv-playing');
+        if (activeItem && activeItem.stopVideo) {
+          activeItem.stopVideo();
         }
       }
-
-      // If already playing this video, do nothing
-      if (isPlaying) return;
 
       activeVideoIndex = index;
 
@@ -327,7 +282,6 @@ export async function GET(request: Request) {
         thumbnailVideo.loop = true;
         thumbnailVideo.muted = globalMuted;
         container.classList.add('sv-playing');
-        isPlaying = true;
         activeVideoElement = thumbnailVideo;
 
         thumbnailVideo.play().catch(console.error);
@@ -339,7 +293,6 @@ export async function GET(request: Request) {
       if (thumbnailVideo) {
         thumbnailVideo.pause();
         container.classList.remove('sv-playing');
-        isPlaying = false;
       }
     }
 
@@ -363,17 +316,13 @@ export async function GET(request: Request) {
       startVideo();
     });
 
-    playBtn.addEventListener('click', (e) => {
-      e.stopPropagation();
-      startVideo();
-    });
-
     pauseBtn.addEventListener('click', (e) => {
       e.stopPropagation();
-      if (isPlaying) {
-        pauseVideo();
-      } else {
+      const isPaused = thumbnailVideo && thumbnailVideo.paused;
+      if (isPaused) {
         startVideo();
+      } else {
+        pauseVideo();
       }
     });
 
@@ -382,8 +331,9 @@ export async function GET(request: Request) {
       toggleMute();
     });
 
-    // Expose startVideo for autoplay
+    // Expose functions for external control
     item.startVideo = startVideo;
+    item.stopVideo = stopVideo;
 
     return item;
   }
