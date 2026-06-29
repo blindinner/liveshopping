@@ -156,6 +156,41 @@ export interface PollWithResults extends Poll {
   viewer_vote?: string; // option_id the current viewer voted for
 }
 
+// Video types (for shoppable videos feature)
+export type VideoStatus = 'processing' | 'ready' | 'error';
+
+export interface Video {
+  id: string;
+  brand_id: string;
+  title: string;
+  description: string | null;
+  product_id: string | null;  // Legacy - use video_products instead
+  cloudflare_stream_id: string | null;
+  cloudflare_playback_id: string | null;
+  thumbnail_url: string | null;
+  cover_image_url: string | null;  // Custom thumbnail for carousel
+  duration_seconds: number | null;
+  status: VideoStatus;
+  is_published: boolean;
+  created_at: string;
+  updated_at: string;
+  // Joined data
+  product?: Product;  // Legacy single product
+  products?: VideoProduct[];  // Multiple products with timestamps
+}
+
+export interface VideoProduct {
+  id: string;
+  video_id: string;
+  product_id: string;
+  start_time_seconds: number;  // When product appears (0 = start)
+  end_time_seconds: number | null;  // When product disappears (null = until end)
+  display_order: number;
+  created_at: string;
+  // Joined data
+  product?: Product;
+}
+
 // Analytics types
 export type ShowEventType =
   | 'viewer_join'
@@ -166,7 +201,10 @@ export type ShowEventType =
   | 'reaction'
   | 'chat_message'
   | 'order_completed'
-  | 'poll_vote';
+  | 'poll_vote'
+  | 'video_view'
+  | 'video_play'
+  | 'video_complete';
 
 export interface ShowEvent {
   id: string;
