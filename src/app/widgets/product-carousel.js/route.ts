@@ -21,6 +21,8 @@ export async function GET(request: Request) {
   let containerElement = null;
   let videos = [];
   let activeVideoIndex = null;
+  let activeVideoElement = null;
+  let globalMuted = true;
 
   const styles = document.createElement('style');
   styles.textContent = \`
@@ -74,7 +76,6 @@ export async function GET(request: Request) {
       pointer-events: none;
     }
 
-
     .svp-video-title {
       font-size: 13px;
       font-weight: 500;
@@ -92,11 +93,14 @@ export async function GET(request: Request) {
       display: flex;
       flex-direction: column;
       gap: 6px;
-      opacity: 0;
+      opacity: 1;
       transition: opacity 0.2s;
     }
-    .svp-video-container:hover .svp-controls,
-    .svp-video-container.svp-playing .svp-controls {
+    .svp-controls .svp-pause-btn {
+      opacity: 0;
+    }
+    .svp-video-container:hover .svp-controls .svp-pause-btn,
+    .svp-video-container.svp-playing .svp-controls .svp-pause-btn {
       opacity: 1;
     }
     .svp-control-btn {
@@ -117,57 +121,6 @@ export async function GET(request: Request) {
     .svp-control-btn svg {
       width: 16px;
       height: 16px;
-    }
-
-    /* Modal for expanded view */
-    .svp-modal {
-      position: fixed;
-      inset: 0;
-      z-index: 999999;
-      background: rgba(0,0,0,0.9);
-      display: flex;
-      align-items: center;
-      justify-content: center;
-      animation: svp-fadeIn 0.2s ease;
-    }
-    @keyframes svp-fadeIn {
-      from { opacity: 0; }
-      to { opacity: 1; }
-    }
-    .svp-modal-content {
-      position: relative;
-      width: 100%;
-      max-width: 400px;
-      height: 90vh;
-      max-height: 712px;
-    }
-    .svp-modal-iframe {
-      width: 100%;
-      height: 100%;
-      border: none;
-      border-radius: 16px;
-    }
-    .svp-modal-close {
-      position: absolute;
-      top: -40px;
-      right: 0;
-      width: 32px;
-      height: 32px;
-      background: rgba(255,255,255,0.2);
-      border: none;
-      border-radius: 50%;
-      color: white;
-      cursor: pointer;
-      display: flex;
-      align-items: center;
-      justify-content: center;
-    }
-    .svp-modal-close:hover {
-      background: rgba(255,255,255,0.3);
-    }
-    .svp-modal-close svg {
-      width: 20px;
-      height: 20px;
     }
   \`;
   document.head.appendChild(styles);
@@ -193,9 +146,18 @@ export async function GET(request: Request) {
           )
         }
         <div class="svp-controls">
-          <button class="svp-control-btn svp-expand-btn" aria-label="Expand">
+          <button class="svp-control-btn svp-mute-btn" aria-label="Mute">
+            <svg class="svp-icon-muted" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+              <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M5.586 15H4a1 1 0 01-1-1v-4a1 1 0 011-1h1.586l4.707-4.707C10.923 3.663 12 4.109 12 5v14c0 .891-1.077 1.337-1.707.707L5.586 15z"/>
+              <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M17 14l2-2m0 0l2-2m-2 2l-2-2m2 2l2 2"/>
+            </svg>
+            <svg class="svp-icon-unmuted" style="display:none" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+              <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M15.536 8.464a5 5 0 010 7.072M18.364 5.636a9 9 0 010 12.728M5.586 15H4a1 1 0 01-1-1v-4a1 1 0 011-1h1.586l4.707-4.707C10.923 3.663 12 4.109 12 5v14c0 .891-1.077 1.337-1.707.707L5.586 15z"/>
+            </svg>
+          </button>
+          <button class="svp-control-btn svp-pause-btn" aria-label="Pause">
             <svg fill="none" stroke="currentColor" viewBox="0 0 24 24">
-              <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M4 8V4m0 0h4M4 4l5 5m11-1V4m0 0h-4m4 0l-5 5M4 16v4m0 0h4m-4 0l5-5m11 5l-5-5m5 5v-4m0 4h-4"/>
+              <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M10 9v6m4-6v6"/>
             </svg>
           </button>
         </div>
@@ -204,86 +166,93 @@ export async function GET(request: Request) {
     \`;
 
     const container = item.querySelector('.svp-video-container');
-    const expandBtn = item.querySelector('.svp-expand-btn');
-
-    let videoElement = null;
-    let isPlaying = false;
-
+    const muteBtn = item.querySelector('.svp-mute-btn');
+    const pauseBtn = item.querySelector('.svp-pause-btn');
     const thumbnailVideo = item.querySelector('.svp-thumbnail-video');
 
-    function startVideo() {
-      if (isPlaying) return;
+    function updateMuteIcon() {
+      const mutedIcon = muteBtn.querySelector('.svp-icon-muted');
+      const unmutedIcon = muteBtn.querySelector('.svp-icon-unmuted');
+      mutedIcon.style.display = globalMuted ? '' : 'none';
+      unmutedIcon.style.display = globalMuted ? 'none' : '';
+    }
 
-      // Pause any other playing video
+    function stopVideo() {
+      if (thumbnailVideo) {
+        thumbnailVideo.pause();
+        thumbnailVideo.currentTime = 0;
+        thumbnailVideo.muted = true;
+      }
+      container.classList.remove('svp-playing');
+    }
+
+    function startVideo() {
+      // Stop and reset any other playing video
       if (activeVideoIndex !== null && activeVideoIndex !== index) {
         const activeItem = containerElement.querySelector(\`.svp-item[data-index="\${activeVideoIndex}"]\`);
-        if (activeItem) {
-          const activeContainer = activeItem.querySelector('.svp-video-container');
-          const activeThumbnailVideo = activeItem.querySelector('.svp-thumbnail-video');
-          if (activeThumbnailVideo) {
-            activeThumbnailVideo.pause();
-            activeThumbnailVideo.currentTime = 0;
-          }
-          activeContainer.classList.remove('svp-playing');
-          const thumb = activeItem.querySelector('.svp-thumbnail');
-          if (thumb) thumb.style.display = '';
+        if (activeItem && activeItem.stopVideo) {
+          activeItem.stopVideo();
         }
       }
 
       activeVideoIndex = index;
 
-      // Play the thumbnail video
       if (thumbnailVideo) {
         thumbnailVideo.loop = true;
-        thumbnailVideo.muted = true;
+        thumbnailVideo.muted = globalMuted;
         container.classList.add('svp-playing');
-        isPlaying = true;
+        activeVideoElement = thumbnailVideo;
+
         thumbnailVideo.play().catch(console.error);
+        updateMuteIcon();
       }
     }
 
-    function openModal() {
-      const modal = document.createElement('div');
-      modal.className = 'svp-modal';
-      modal.innerHTML = \`
-        <div class="svp-modal-content">
-          <button class="svp-modal-close" aria-label="Close">
-            <svg fill="none" stroke="currentColor" viewBox="0 0 24 24">
-              <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M6 18L18 6M6 6l12 12"/>
-            </svg>
-          </button>
-          <iframe class="svp-modal-iframe" src="\${BASE_URL}/embed/video/\${video.id}" allow="autoplay; fullscreen"></iframe>
-        </div>
-      \`;
-
-      modal.addEventListener('click', (e) => {
-        if (e.target === modal) {
-          modal.remove();
-        }
-      });
-
-      modal.querySelector('.svp-modal-close').addEventListener('click', () => {
-        modal.remove();
-      });
-
-      document.body.appendChild(modal);
+    function pauseVideo() {
+      if (thumbnailVideo) {
+        thumbnailVideo.pause();
+        container.classList.remove('svp-playing');
+      }
     }
 
-    expandBtn.addEventListener('click', (e) => {
+    function toggleMute() {
+      globalMuted = !globalMuted;
+      if (activeVideoElement) {
+        activeVideoElement.muted = globalMuted;
+      }
+      // Update all mute icons
+      containerElement.querySelectorAll('.svp-mute-btn').forEach(btn => {
+        const mutedIcon = btn.querySelector('.svp-icon-muted');
+        const unmutedIcon = btn.querySelector('.svp-icon-unmuted');
+        mutedIcon.style.display = globalMuted ? '' : 'none';
+        unmutedIcon.style.display = globalMuted ? 'none' : '';
+      });
+    }
+
+    // Click on video container to play
+    container.addEventListener('click', (e) => {
+      if (e.target.closest('.svp-control-btn')) return;
+      startVideo();
+    });
+
+    pauseBtn.addEventListener('click', (e) => {
       e.stopPropagation();
-      openModal();
-    });
-
-    container.addEventListener('click', () => {
-      if (isPlaying) {
-        openModal();
-      } else {
+      const isPaused = thumbnailVideo && thumbnailVideo.paused;
+      if (isPaused) {
         startVideo();
+      } else {
+        pauseVideo();
       }
     });
 
-    // Expose startVideo for autoplay
+    muteBtn.addEventListener('click', (e) => {
+      e.stopPropagation();
+      toggleMute();
+    });
+
+    // Expose functions for external control
     item.startVideo = startVideo;
+    item.stopVideo = stopVideo;
 
     return item;
   }
