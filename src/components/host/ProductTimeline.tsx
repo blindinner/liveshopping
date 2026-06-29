@@ -9,6 +9,7 @@ interface ShopifyProduct {
   shopify_product_id: string;
   shopify_variant_id: string;
   title: string;
+  handle: string;
   price: number;
   currency: string;
   image_url: string | null;
@@ -76,6 +77,7 @@ export function ProductTimeline({
           shopifyProductId: shopifyProduct.shopify_product_id,
           shopifyVariantId: shopifyProduct.shopify_variant_id,
           title: shopifyProduct.title,
+          handle: shopifyProduct.handle,
           price: shopifyProduct.price,
           currency: shopifyProduct.currency,
           imageUrl: shopifyProduct.image_url,

@@ -38,6 +38,7 @@ export interface Product {
   shopify_product_id: string | null;
   shopify_variant_id: string | null;
   title: string;
+  handle: string | null; // Product URL slug for Shopify products
   price: number;
   currency: string;
   image_url: string | null;

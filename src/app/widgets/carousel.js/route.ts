@@ -179,34 +179,26 @@ export async function GET(request: Request) {
       color: #666;
       margin-top: 2px;
     }
-    .sv-add-btn {
+    .sv-view-btn {
       width: 36px;
       height: 36px;
-      background: #2563eb;
+      background: #f3f4f6;
       border: none;
       border-radius: 50%;
-      color: white;
-      cursor: pointer;
+      color: #374151;
       display: flex;
       align-items: center;
       justify-content: center;
       transition: background 0.2s, transform 0.2s;
       flex-shrink: 0;
     }
-    .sv-add-btn:hover {
-      background: #1d4ed8;
+    .sv-product-card:hover .sv-view-btn {
+      background: #e5e7eb;
       transform: scale(1.1);
     }
-    .sv-add-btn svg {
-      width: 20px;
-      height: 20px;
-    }
-    .sv-add-btn.sv-added {
-      background: #16a34a;
-    }
-    .sv-add-btn.sv-added svg {
-      width: 16px;
-      height: 16px;
+    .sv-view-btn svg {
+      width: 18px;
+      height: 18px;
     }
 
     @media (max-width: 640px) {
@@ -266,18 +258,18 @@ export async function GET(request: Request) {
         </div>
       </div>
       \${product ? \`
-        <div class="sv-product-card">
+        <a href="\${product.handle ? '/products/' + product.handle : '#'}" class="sv-product-card" style="text-decoration: none; color: inherit;">
           <img src="\${product.image_url || ''}" alt="\${product.title}" class="sv-product-img">
           <div class="sv-product-info">
             <div class="sv-product-name">\${product.title}</div>
             <div class="sv-product-price">\${formatPrice(product.price, product.currency)}</div>
           </div>
-          <button class="sv-add-btn" data-product-id="\${product.id}" data-variant-id="\${product.shopify_variant_id}" aria-label="Add to cart">
+          <span class="sv-view-btn" aria-label="View product">
             <svg fill="none" stroke="currentColor" viewBox="0 0 24 24">
-              <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 6v12m6-6H6"/>
+              <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 5l7 7-7 7"/>
             </svg>
-          </button>
-        </div>
+          </span>
+        </a>
       \` : ''}
     \`;
 
@@ -285,7 +277,6 @@ export async function GET(request: Request) {
     const playBtn = item.querySelector('.sv-play-btn');
     const muteBtn = item.querySelector('.sv-mute-btn');
     const pauseBtn = item.querySelector('.sv-pause-btn');
-    const addBtn = item.querySelector('.sv-add-btn');
 
     let videoElement = null;
     let isMuted = true;
@@ -370,60 +361,6 @@ export async function GET(request: Request) {
       e.stopPropagation();
       toggleMute();
     });
-
-    // Add to cart
-    if (addBtn && product) {
-      addBtn.addEventListener('click', async (e) => {
-        e.stopPropagation();
-
-        if (product.checkout_url) {
-          window.open(product.checkout_url, '_blank');
-          return;
-        }
-
-        try {
-          addBtn.disabled = true;
-
-          // Try Shopify AJAX API first
-          if (window.Shopify?.shop || document.querySelector('[data-shopify-storefront]')) {
-            const response = await fetch('/cart/add.js', {
-              method: 'POST',
-              headers: { 'Content-Type': 'application/json' },
-              body: JSON.stringify({
-                id: product.shopify_variant_id,
-                quantity: 1
-              })
-            });
-
-            if (response.ok) {
-              addBtn.classList.add('sv-added');
-              addBtn.innerHTML = '<svg fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M5 13l4 4L19 7"/></svg>';
-              setTimeout(() => {
-                addBtn.classList.remove('sv-added');
-                addBtn.innerHTML = '<svg fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 6v12m6-6H6"/></svg>';
-              }, 2000);
-              return;
-            }
-          }
-
-          // Fallback: dispatch custom event
-          window.dispatchEvent(new CustomEvent('shoppable-video-add-to-cart', {
-            detail: { product, videoId: video.id }
-          }));
-
-          addBtn.classList.add('sv-added');
-          addBtn.innerHTML = '<svg fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M5 13l4 4L19 7"/></svg>';
-          setTimeout(() => {
-            addBtn.classList.remove('sv-added');
-            addBtn.innerHTML = '<svg fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 6v12m6-6H6"/></svg>';
-          }, 2000);
-        } catch (err) {
-          console.error('Add to cart failed:', err);
-        } finally {
-          addBtn.disabled = false;
-        }
-      });
-    }
 
     return item;
   }
