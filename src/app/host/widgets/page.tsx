@@ -4,15 +4,18 @@ import { useEffect, useState } from 'react';
 import Link from 'next/link';
 import type { Video } from '@/types/database';
 
-type WidgetType = 'carousel' | 'floating' | 'pdp';
+type WidgetType = 'carousel' | 'floating' | 'pdp' | 'product-carousel';
 
 interface WidgetConfig {
   type: WidgetType;
   brandId?: string;
   videoId?: string;
+  shopifyProductId?: string;
   // Carousel options
   layout?: 'horizontal' | 'grid';
   title?: string;
+  // Product carousel options
+  productCarouselTitle?: string;
   thumbnailWidth?: number;
   showTitle?: boolean;
   // Floating options
@@ -39,6 +42,8 @@ export default function WidgetsPage() {
     loop: true,
     width: '100%',
     maxWidth: '400px',
+    shopifyProductId: '',
+    productCarouselTitle: 'Seen in Action',
   });
   const [copied, setCopied] = useState(false);
   const [isLoading, setIsLoading] = useState(true);
@@ -104,6 +109,13 @@ export default function WidgetsPage() {
   data-max-width="${config.maxWidth}"
 ></script>`;
 
+      case 'product-carousel':
+        return `<script
+  src="${baseUrl}/widgets/product-carousel.js"
+  data-shopify-product-id="${config.shopifyProductId || 'YOUR_PRODUCT_ID'}"
+  data-title="${config.productCarouselTitle}"
+></script>`;
+
       default:
         return '';
     }
@@ -163,6 +175,22 @@ export default function WidgetsPage() {
         </svg>
       ),
       bestFor: 'Product pages',
+    },
+    {
+      type: 'product-carousel' as WidgetType,
+      title: 'Product Carousel',
+      description: 'Shows all videos featuring a specific product',
+      icon: (
+        <svg className="w-6 h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+          <path
+            strokeLinecap="round"
+            strokeLinejoin="round"
+            strokeWidth={1.5}
+            d="M16 11V7a4 4 0 00-8 0v4M5 9h14l1 12H4L5 9z"
+          />
+        </svg>
+      ),
+      bestFor: 'Product detail pages (Shopify)',
     },
   ];
 
@@ -353,6 +381,33 @@ export default function WidgetsPage() {
                   </div>
                 </>
               )}
+
+              {selectedWidget === 'product-carousel' && (
+                <>
+                  <div>
+                    <label className="block text-white/70 text-sm mb-1.5">Shopify Product ID</label>
+                    <input
+                      type="text"
+                      value={config.shopifyProductId}
+                      onChange={(e) => setConfig({ ...config, shopifyProductId: e.target.value })}
+                      placeholder="e.g., 7654321098765"
+                      className="w-full bg-black/30 text-white text-sm rounded-lg px-3 py-2 border border-white/10 focus:outline-none focus:ring-1 focus:ring-pink-500/50"
+                    />
+                    <p className="text-white/40 text-xs mt-1">
+                      Find this in Shopify Admin → Products → Select product → Check URL for the ID
+                    </p>
+                  </div>
+                  <div>
+                    <label className="block text-white/70 text-sm mb-1.5">Section Title</label>
+                    <input
+                      type="text"
+                      value={config.productCarouselTitle}
+                      onChange={(e) => setConfig({ ...config, productCarouselTitle: e.target.value })}
+                      className="w-full bg-black/30 text-white text-sm rounded-lg px-3 py-2 border border-white/10 focus:outline-none focus:ring-1 focus:ring-pink-500/50"
+                    />
+                  </div>
+                </>
+              )}
             </div>
           </div>
 
@@ -469,6 +524,35 @@ export default function WidgetsPage() {
                       <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M5 13l4 4L19 7" />
                     </svg>
                     Perfect for product detail pages
+                  </li>
+                </ul>
+              )}
+
+              {selectedWidget === 'product-carousel' && (
+                <ul className="text-white/70 text-sm space-y-2">
+                  <li className="flex items-start gap-2">
+                    <svg className="w-4 h-4 mt-0.5 text-pink-400 shrink-0" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                      <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M5 13l4 4L19 7" />
+                    </svg>
+                    Shows all videos tagged with this product
+                  </li>
+                  <li className="flex items-start gap-2">
+                    <svg className="w-4 h-4 mt-0.5 text-pink-400 shrink-0" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                      <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M5 13l4 4L19 7" />
+                    </svg>
+                    Click thumbnail to play, click again to expand
+                  </li>
+                  <li className="flex items-start gap-2">
+                    <svg className="w-4 h-4 mt-0.5 text-pink-400 shrink-0" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                      <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M5 13l4 4L19 7" />
+                    </svg>
+                    Only displays if videos exist for this product
+                  </li>
+                  <li className="flex items-start gap-2">
+                    <svg className="w-4 h-4 mt-0.5 text-pink-400 shrink-0" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                      <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M5 13l4 4L19 7" />
+                    </svg>
+                    Use in Shopify product templates with {`{{ product.id }}`}
                   </li>
                 </ul>
               )}

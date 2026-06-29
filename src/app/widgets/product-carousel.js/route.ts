@@ -71,42 +71,6 @@ export async function GET(request: Request) {
       object-fit: cover;
     }
 
-    .svp-play-overlay {
-      position: absolute;
-      inset: 0;
-      display: flex;
-      align-items: flex-end;
-      justify-content: flex-start;
-      padding: 12px;
-      background: linear-gradient(transparent 50%, rgba(0,0,0,0.6));
-      transition: opacity 0.2s;
-    }
-    .svp-video-container.svp-playing .svp-play-overlay {
-      opacity: 0;
-      pointer-events: none;
-    }
-    .svp-play-btn {
-      width: 48px;
-      height: 48px;
-      background: rgba(255,255,255,0.95);
-      border: none;
-      border-radius: 50%;
-      cursor: pointer;
-      display: flex;
-      align-items: center;
-      justify-content: center;
-      box-shadow: 0 2px 8px rgba(0,0,0,0.2);
-      transition: transform 0.2s;
-    }
-    .svp-play-btn:hover {
-      transform: scale(1.1);
-    }
-    .svp-play-btn svg {
-      width: 20px;
-      height: 20px;
-      fill: #000;
-      margin-left: 2px;
-    }
 
     .svp-video-title {
       font-size: 13px;
@@ -219,11 +183,6 @@ export async function GET(request: Request) {
           \`<img src="\${thumbnail}" alt="\${video.title}" class="svp-thumbnail">\` :
           \`<div style="width:100%;height:100%;background:#333;"></div>\`
         }
-        <div class="svp-play-overlay">
-          <button class="svp-play-btn" aria-label="Play">
-            <svg viewBox="0 0 24 24"><path d="M8 5v14l11-7z"/></svg>
-          </button>
-        </div>
         <div class="svp-controls">
           <button class="svp-control-btn svp-expand-btn" aria-label="Expand">
             <svg fill="none" stroke="currentColor" viewBox="0 0 24 24">
@@ -236,7 +195,6 @@ export async function GET(request: Request) {
     \`;
 
     const container = item.querySelector('.svp-video-container');
-    const playBtn = item.querySelector('.svp-play-btn');
     const expandBtn = item.querySelector('.svp-expand-btn');
 
     let videoElement = null;
@@ -310,11 +268,6 @@ export async function GET(request: Request) {
 
       document.body.appendChild(modal);
     }
-
-    playBtn.addEventListener('click', (e) => {
-      e.stopPropagation();
-      startVideo();
-    });
 
     expandBtn.addEventListener('click', (e) => {
       e.stopPropagation();
