@@ -59,3 +59,87 @@ export async function GET(request: Request) {
     );
   }
 }
+
+// POST /api/shopify/products - Create or get existing product record
+export async function POST(request: Request) {
+  try {
+    const supabase = await createClient();
+
+    let user;
+    try {
+      const { data } = await supabase.auth.getUser();
+      user = data.user;
+    } catch (authError) {
+      console.error('Auth check failed (network issue?):', authError);
+      return NextResponse.json(
+        { error: 'Service temporarily unavailable, please try again' },
+        { status: 503 }
+      );
+    }
+
+    if (!user) {
+      return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
+    }
+
+    const {
+      brandId,
+      shopifyProductId,
+      shopifyVariantId,
+      title,
+      price,
+      currency,
+      imageUrl,
+    } = await request.json();
+
+    if (!brandId || !shopifyVariantId || !title) {
+      return NextResponse.json(
+        { error: 'Missing required fields' },
+        { status: 400 }
+      );
+    }
+
+    // Check if product already exists
+    const { data: existingProduct } = await supabase
+      .from('products')
+      .select('*')
+      .eq('brand_id', brandId)
+      .eq('shopify_variant_id', shopifyVariantId)
+      .single();
+
+    if (existingProduct) {
+      return NextResponse.json({ product: existingProduct });
+    }
+
+    // Create new product
+    const { data: product, error } = await supabase
+      .from('products')
+      .insert({
+        brand_id: brandId,
+        shopify_product_id: shopifyProductId,
+        shopify_variant_id: shopifyVariantId,
+        title,
+        price,
+        currency: currency || 'ILS',
+        image_url: imageUrl,
+        source: 'shopify',
+      })
+      .select()
+      .single();
+
+    if (error) {
+      console.error('Create product error:', error);
+      return NextResponse.json(
+        { error: 'Failed to create product' },
+        { status: 500 }
+      );
+    }
+
+    return NextResponse.json({ product });
+  } catch (error) {
+    console.error('Create product API error:', error);
+    return NextResponse.json(
+      { error: 'Internal server error' },
+      { status: 500 }
+    );
+  }
+}

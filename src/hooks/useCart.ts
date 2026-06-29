@@ -68,6 +68,7 @@ async function createCartSession(
 
 interface UseCartOptions {
   showId?: string;
+  videoId?: string;
   viewerId?: string;
 }
 
