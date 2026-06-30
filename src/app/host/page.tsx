@@ -49,8 +49,16 @@ function HostDashboardContent() {
     e.preventDefault();
     if (!shopDomain) return;
 
-    // Ensure proper format
+    // Clean up the input - handle URLs, protocols, etc.
     let domain = shopDomain.trim().toLowerCase();
+
+    // Remove protocol if present
+    domain = domain.replace(/^https?:\/\//, '');
+
+    // Remove trailing slashes
+    domain = domain.replace(/\/+$/, '');
+
+    // Add .myshopify.com if not present
     if (!domain.includes('.myshopify.com')) {
       domain = `${domain}.myshopify.com`;
     }
