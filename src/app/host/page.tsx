@@ -2,7 +2,7 @@
 
 import { useEffect, useState } from 'react';
 import Link from 'next/link';
-import { useRouter } from 'next/navigation';
+import { useRouter, useSearchParams } from 'next/navigation';
 import { createClient } from '@/lib/supabase/client';
 import { Button } from '@/components/ui/Button';
 import { Input } from '@/components/ui/Input';
@@ -16,12 +16,24 @@ export default function HostDashboard() {
   const [newShowTitle, setNewShowTitle] = useState('');
   const [newShowDate, setNewShowDate] = useState('');
   const [brandId, setBrandId] = useState<string | null>(null);
+  const [brandDomain, setBrandDomain] = useState<string | null>(null);
+  const [showConnectModal, setShowConnectModal] = useState(false);
+  const [shopDomain, setShopDomain] = useState('');
+  const [justInstalled, setJustInstalled] = useState(false);
   const router = useRouter();
+  const searchParams = useSearchParams();
 
   useEffect(() => {
     loadShows();
     loadBrand();
-  }, []);
+
+    // Check if we just installed the app
+    if (searchParams.get('installed') === 'true') {
+      setJustInstalled(true);
+      // Clear the URL params
+      window.history.replaceState({}, '', '/host');
+    }
+  }, [searchParams]);
 
   const loadBrand = async () => {
     // For MVP, get the first brand (single brand setup)
@@ -29,7 +41,22 @@ export default function HostDashboard() {
     const data = await response.json();
     if (data.brands?.[0]) {
       setBrandId(data.brands[0].id);
+      setBrandDomain(data.brands[0].shopify_domain || null);
     }
+  };
+
+  const handleConnectShopify = (e: React.FormEvent) => {
+    e.preventDefault();
+    if (!shopDomain) return;
+
+    // Ensure proper format
+    let domain = shopDomain.trim().toLowerCase();
+    if (!domain.includes('.myshopify.com')) {
+      domain = `${domain}.myshopify.com`;
+    }
+
+    // Redirect to OAuth flow
+    window.location.href = `/api/shopify/auth?shop=${encodeURIComponent(domain)}`;
   };
 
   const loadShows = async () => {
@@ -102,6 +129,55 @@ export default function HostDashboard() {
 
   return (
     <main className="min-h-screen bg-gradient-to-b from-gray-900 to-black">
+      {/* Success Toast */}
+      {justInstalled && (
+        <div className="fixed top-4 left-1/2 -translate-x-1/2 bg-green-500 text-white px-4 py-2 rounded-lg shadow-lg z-50 animate-fade-in">
+          Shopify store connected successfully!
+        </div>
+      )}
+
+      {/* Connect Shopify Modal */}
+      {showConnectModal && (
+        <div className="fixed inset-0 bg-black/80 flex items-center justify-center z-50 p-4">
+          <div className="bg-gray-900 rounded-2xl p-6 w-full max-w-md border border-white/10">
+            <h2 className="text-xl font-bold text-white mb-4">Connect Shopify Store</h2>
+            <form onSubmit={handleConnectShopify} className="space-y-4">
+              <div>
+                <label className="block text-sm text-white/60 mb-2">
+                  Your Shopify store URL
+                </label>
+                <div className="flex">
+                  <input
+                    type="text"
+                    placeholder="your-store"
+                    value={shopDomain}
+                    onChange={(e) => setShopDomain(e.target.value)}
+                    className="flex-1 bg-white/10 border border-white/20 rounded-l-lg px-4 py-3 text-white placeholder-white/40 focus:outline-none focus:border-pink-500"
+                    required
+                  />
+                  <span className="bg-white/5 border border-l-0 border-white/20 rounded-r-lg px-3 py-3 text-white/40 text-sm">
+                    .myshopify.com
+                  </span>
+                </div>
+              </div>
+              <div className="flex gap-3">
+                <Button
+                  type="button"
+                  variant="secondary"
+                  onClick={() => setShowConnectModal(false)}
+                  className="flex-1"
+                >
+                  Cancel
+                </Button>
+                <Button type="submit" className="flex-1">
+                  Connect
+                </Button>
+              </div>
+            </form>
+          </div>
+        </div>
+      )}
+
       {/* Header */}
       <header className="p-4 flex items-center justify-between border-b border-white/10">
         <h1 className="text-xl font-bold text-white">Dashboard</h1>
@@ -114,6 +190,45 @@ export default function HostDashboard() {
       </header>
 
       <div className="p-4 space-y-8">
+        {/* Store Connection Status */}
+        {!brandDomain ? (
+          <section className="bg-gradient-to-r from-green-500/20 to-emerald-500/20 border border-green-500/30 rounded-2xl p-4">
+            <div className="flex items-center justify-between">
+              <div>
+                <h2 className="text-white font-semibold">Connect Your Store</h2>
+                <p className="text-white/60 text-sm mt-1">
+                  Connect your Shopify store to start creating shoppable videos
+                </p>
+              </div>
+              <Button onClick={() => setShowConnectModal(true)} size="sm">
+                Connect Shopify
+              </Button>
+            </div>
+          </section>
+        ) : (
+          <section className="bg-white/5 rounded-2xl p-4">
+            <div className="flex items-center justify-between">
+              <div className="flex items-center gap-3">
+                <div className="w-10 h-10 rounded-full bg-green-500/20 flex items-center justify-center">
+                  <svg className="w-5 h-5 text-green-400" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M5 13l4 4L19 7" />
+                  </svg>
+                </div>
+                <div>
+                  <h3 className="text-white font-medium">Store Connected</h3>
+                  <p className="text-white/50 text-sm">{brandDomain}</p>
+                </div>
+              </div>
+              <button
+                onClick={() => setShowConnectModal(true)}
+                className="text-sm text-white/40 hover:text-white"
+              >
+                Change
+              </button>
+            </div>
+          </section>
+        )}
+
         {/* Quick Links */}
         <section className="grid grid-cols-2 gap-3">
           <Link
