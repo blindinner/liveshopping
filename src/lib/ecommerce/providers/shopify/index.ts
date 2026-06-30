@@ -49,17 +49,19 @@ export class ShopifyProvider extends EcommerceProvider {
     if (!domain) {
       throw new Error('Shopify domain is required');
     }
-    if (!storefront_token) {
-      throw new Error('Shopify storefront token is required');
-    }
 
     this.domain = domain;
-    this.client = createShopifyClient(domain, storefront_token);
+
+    // Only create client if storefront_token is available
+    // Webhook verification doesn't need the client
+    if (storefront_token) {
+      this.client = createShopifyClient(domain, storefront_token);
+    }
   }
 
   private getClient(): GraphQLClient {
     if (!this.client) {
-      throw new Error('Shopify provider not initialized');
+      throw new Error('Shopify storefront token is required for this operation');
     }
     return this.client;
   }
