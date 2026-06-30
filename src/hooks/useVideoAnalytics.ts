@@ -191,7 +191,15 @@ export function useVideoAnalytics(videoId: string) {
   const [productMetrics, setProductMetrics] = useState<VideoProductMetrics[]>([]);
   const [isLoading, setIsLoading] = useState(true);
 
+  // Guard against empty videoId
+  const validVideoId = videoId && videoId.trim() !== '';
+
   const loadMetrics = useCallback(async () => {
+    if (!validVideoId) {
+      setIsLoading(false);
+      return;
+    }
+
     const supabase = createClient();
 
     try {
@@ -214,9 +222,11 @@ export function useVideoAnalytics(videoId: string) {
     } finally {
       setIsLoading(false);
     }
-  }, [videoId]);
+  }, [videoId, validVideoId]);
 
   useEffect(() => {
+    if (!validVideoId) return;
+
     loadMetrics();
 
     // Subscribe to real-time updates
@@ -241,7 +251,7 @@ export function useVideoAnalytics(videoId: string) {
     return () => {
       supabase.removeChannel(channel);
     };
-  }, [videoId, loadMetrics]);
+  }, [videoId, validVideoId, loadMetrics]);
 
   const refresh = useCallback(() => {
     setIsLoading(true);

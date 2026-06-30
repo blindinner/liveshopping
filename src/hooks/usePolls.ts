@@ -12,12 +12,20 @@ export function useActivePoll(showId: string, viewerId: string) {
   const channelRef = useRef<RealtimeChannel | null>(null);
   const activePollIdRef = useRef<string | null>(null);
 
+  // Guard against empty showId
+  const validShowId = showId && showId.trim() !== '';
+
   // Keep ref in sync with state for use in subscription callbacks
   useEffect(() => {
     activePollIdRef.current = activePoll?.id || null;
   }, [activePoll?.id]);
 
   useEffect(() => {
+    if (!validShowId) {
+      setIsLoading(false);
+      return;
+    }
+
     const supabase = createClient();
 
     // Load active poll
@@ -100,7 +108,7 @@ export function useActivePoll(showId: string, viewerId: string) {
     return () => {
       supabase.removeChannel(channel);
     };
-  }, [showId, viewerId]);
+  }, [showId, viewerId, validShowId]);
 
   const submitVote = useCallback(
     async (optionId: string) => {
@@ -154,7 +162,14 @@ export function usePollManagement(showId: string) {
   const [polls, setPolls] = useState<Poll[]>([]);
   const [isLoading, setIsLoading] = useState(true);
 
+  // Guard against empty showId
+  const validShowId = showId && showId.trim() !== '';
+
   const loadPolls = useCallback(async () => {
+    if (!validShowId) {
+      setIsLoading(false);
+      return;
+    }
     try {
       const response = await fetch(`/api/shows/${showId}/polls`);
       const data = await response.json();
@@ -164,9 +179,14 @@ export function usePollManagement(showId: string) {
     } finally {
       setIsLoading(false);
     }
-  }, [showId]);
+  }, [showId, validShowId]);
 
   useEffect(() => {
+    if (!validShowId) {
+      setIsLoading(false);
+      return;
+    }
+
     const supabase = createClient();
 
     // Initial load
@@ -222,7 +242,7 @@ export function usePollManagement(showId: string) {
     return () => {
       supabase.removeChannel(channel);
     };
-  }, [showId]);
+  }, [showId, validShowId]);
 
   const createPoll = useCallback(
     async (question: string, options: string[]) => {

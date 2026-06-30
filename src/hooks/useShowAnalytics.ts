@@ -215,6 +215,9 @@ export function useShowAnalytics(showId: string) {
   const [isLoading, setIsLoading] = useState(true);
   const [allEvents, setAllEvents] = useState<ShowEvent[]>([]);
 
+  // Guard against empty showId
+  const validShowId = showId && showId.trim() !== '';
+
   // Helper to convert Map to sorted array
   const updateProductMetrics = useCallback((aggregation: EventAggregation) => {
     const sorted = Array.from(aggregation.productMetrics.entries())
@@ -230,6 +233,11 @@ export function useShowAnalytics(showId: string) {
 
   // Load initial metrics from database
   const loadInitialMetrics = useCallback(async () => {
+    if (!validShowId) {
+      setIsLoading(false);
+      return;
+    }
+
     const supabase = createClient();
 
     try {
@@ -295,9 +303,11 @@ export function useShowAnalytics(showId: string) {
     } finally {
       setIsLoading(false);
     }
-  }, [showId, updateProductMetrics]);
+  }, [showId, validShowId, updateProductMetrics]);
 
   useEffect(() => {
+    if (!validShowId) return;
+
     loadInitialMetrics();
 
     const supabase = createClient();
@@ -394,7 +404,7 @@ export function useShowAnalytics(showId: string) {
       supabase.removeChannel(engagementChannel);
       supabase.removeChannel(cartChannel);
     };
-  }, [showId, loadInitialMetrics, updateProductMetrics]);
+  }, [showId, validShowId, loadInitialMetrics, updateProductMetrics]);
 
   // Helper to refresh metrics manually
   const refresh = useCallback(() => {
