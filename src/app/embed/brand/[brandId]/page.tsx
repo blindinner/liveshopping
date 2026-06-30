@@ -213,6 +213,7 @@ export default function BrandEmbedPage() {
     addToCart,
     updateQuantity,
     removeFromCart,
+    checkout,
   } = useCart({ showId: show?.id || '', viewerId });
 
   // Track viewer_join event when viewer loads the live show
@@ -241,12 +242,10 @@ export default function BrandEmbedPage() {
     [addToCart]
   );
 
-  // Handle checkout
+  // Handle checkout - uses checkout from useCart which tracks the event
   const handleCheckout = useCallback(() => {
-    if (cart.checkoutUrl) {
-      window.open(cart.checkoutUrl, '_blank', 'noopener,noreferrer');
-    }
-  }, [cart.checkoutUrl]);
+    checkout();
+  }, [checkout]);
 
   // Handle share
   const handleShare = useCallback(async () => {

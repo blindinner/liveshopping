@@ -133,6 +133,7 @@ export default function EmbedLiveViewerPage() {
     addToCart,
     updateQuantity,
     removeFromCart,
+    checkout,
   } = useCart({ showId, viewerId });
 
   // Track viewer_join event when viewer loads the live show
@@ -163,12 +164,10 @@ export default function EmbedLiveViewerPage() {
     [addToCart]
   );
 
-  // Handle checkout - open in new tab on mobile
+  // Handle checkout - uses checkout from useCart which tracks the event
   const handleCheckout = useCallback(() => {
-    if (cart.checkoutUrl) {
-      window.open(cart.checkoutUrl, '_blank', 'noopener,noreferrer');
-    }
-  }, [cart.checkoutUrl]);
+    checkout();
+  }, [checkout]);
 
   // Translations
   const t = {
