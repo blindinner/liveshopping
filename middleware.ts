@@ -8,6 +8,7 @@ export async function middleware(request: NextRequest) {
 export const config = {
   matcher: [
     // Match all routes except static files, embed routes, and api routes that don't need auth
-    '/((?!_next/static|_next/image|favicon.ico|api/webhooks|embed/.*|.*\\.(?:svg|png|jpg|jpeg|gif|webp)$).*)',
+    // api/shopify/auth and api/shopify/callback are excluded for OAuth flow
+    '/((?!_next/static|_next/image|favicon.ico|api/webhooks|api/shopify/auth|api/shopify/callback|embed/.*|.*\\.(?:svg|png|jpg|jpeg|gif|webp)$).*)',
   ],
 };
