@@ -11,13 +11,69 @@ interface WebhookConfig {
 }
 
 /**
+ * Delete existing webhooks that match our app URL
+ * This ensures we replace old webhooks with new ones during OAuth
+ */
+async function deleteExistingWebhooks(
+  shop: string,
+  accessToken: string,
+  appUrl: string
+): Promise<void> {
+  try {
+    // List all webhooks
+    const response = await fetch(
+      `https://${shop}/admin/api/${SHOPIFY_API_VERSION}/webhooks.json`,
+      {
+        headers: {
+          'X-Shopify-Access-Token': accessToken,
+        },
+      }
+    );
+
+    if (!response.ok) {
+      console.error('Failed to list webhooks:', await response.text());
+      return;
+    }
+
+    const data = await response.json();
+    const webhooks = data.webhooks || [];
+
+    // Delete only webhooks that point to our app URL
+    for (const webhook of webhooks) {
+      if (webhook.address && webhook.address.includes(appUrl)) {
+        try {
+          await fetch(
+            `https://${shop}/admin/api/${SHOPIFY_API_VERSION}/webhooks/${webhook.id}.json`,
+            {
+              method: 'DELETE',
+              headers: {
+                'X-Shopify-Access-Token': accessToken,
+              },
+            }
+          );
+          console.log(`Deleted existing webhook: ${webhook.topic} (${webhook.id})`);
+        } catch (err) {
+          console.error(`Failed to delete webhook ${webhook.id}:`, err);
+        }
+      }
+    }
+  } catch (error) {
+    console.error('Error cleaning up existing webhooks:', error);
+  }
+}
+
+/**
  * Register webhooks for a Shopify store using the Admin API
+ * Deletes existing webhooks first to ensure clean state
  */
 export async function registerShopifyWebhooks(
   shop: string,
   accessToken: string,
   appUrl: string
 ): Promise<void> {
+  // First, delete any existing webhooks from our app
+  await deleteExistingWebhooks(shop, accessToken, appUrl);
+
   const webhooks: WebhookConfig[] = [
     {
       topic: 'orders/create',
