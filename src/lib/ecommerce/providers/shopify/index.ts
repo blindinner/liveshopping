@@ -284,8 +284,8 @@ export class ShopifyProvider extends EcommerceProvider {
         : undefined,
       currency: order.currency,
       lineItems: order.line_items.map((item) => ({
-        productId: item.product_id.toString(),
-        variantId: item.variant_id.toString(),
+        productId: item.product_id?.toString() ?? '',
+        variantId: item.variant_id?.toString() ?? '',
         title: item.title,
         quantity: item.quantity,
         price: parseFloat(item.price),
