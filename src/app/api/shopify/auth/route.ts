@@ -77,6 +77,9 @@ export async function GET(request: NextRequest) {
     const callbackUrl = `${appUrl}/api/shopify/callback`;
     const authUrl = buildOAuthUrl(shop, apiKey, scopes, callbackUrl, state);
 
+    console.log(`OAuth redirect for ${shop} with scopes: ${scopes}`);
+    console.log(`Auth URL: ${authUrl}`);
+
     return NextResponse.redirect(authUrl);
   } catch (error) {
     console.error('OAuth initiation error:', error);
