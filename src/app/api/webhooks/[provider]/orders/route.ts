@@ -115,56 +115,67 @@ export async function POST(
 
     // Parse order using provider
     const normalizedOrder = ecommerceProvider.parseOrderWebhook(eventType, payload);
-    const cartId = ecommerceProvider.extractCartIdFromOrder(payload);
+
+    // Try to extract attribution from cart attributes (most reliable method)
+    const attribution = ecommerceProvider.extractAttributionFromOrder(payload);
 
     console.log('Webhook received:', {
       platform,
       eventType,
       orderId: normalizedOrder.orderId,
-      cartId,
       total: normalizedOrder.totalAmount,
+      attribution,
     });
 
-    // Skip if no cart ID (can't attribute)
-    if (!cartId) {
-      console.log('No cart ID in order, skipping attribution');
+    // Skip if no attribution data (cart wasn't created during a live show or video)
+    if (!attribution) {
+      console.log('No attribution data in order, skipping');
       return NextResponse.json({ received: true, attributed: false });
     }
 
-    // Find cart session for attribution
-    const { data: cartSession, error: cartError } = await supabase
-      .from('cart_sessions')
-      .select('id, show_id, viewer_id')
-      .eq('platform_cart_id', cartId)
-      .eq('platform', platform)
-      .single();
+    const { showId, videoId, viewerId } = attribution;
 
-    if (cartError || !cartSession) {
-      console.log('No cart session found for cart:', cartId);
-      return NextResponse.json({ received: true, attributed: false });
+    // Try to find and update existing cart session (if one was created)
+    // Build query based on whether it's a show or video
+    let sessionQuery = supabase
+      .from('cart_sessions')
+      .select('id')
+      .eq('viewer_id', viewerId)
+      .eq('platform', platform);
+
+    if (showId) {
+      sessionQuery = sessionQuery.eq('show_id', showId);
+    } else if (videoId) {
+      sessionQuery = sessionQuery.eq('video_id', videoId);
     }
 
-    // Update cart session with conversion
-    const { error: updateError } = await supabase
-      .from('cart_sessions')
-      .update({
-        converted: true,
-        order_id: normalizedOrder.orderId,
-        order_total: normalizedOrder.totalAmount,
-        order_currency: normalizedOrder.currency,
-        converted_at: new Date().toISOString(),
-      })
-      .eq('id', cartSession.id);
+    const { data: existingSession } = await sessionQuery.single();
 
-    if (updateError) {
-      console.error('Failed to update cart session:', updateError);
+    if (existingSession) {
+      // Update the existing cart session with conversion data
+      const { error: updateError } = await supabase
+        .from('cart_sessions')
+        .update({
+          converted: true,
+          order_id: normalizedOrder.orderId,
+          order_total: normalizedOrder.totalAmount,
+          order_currency: normalizedOrder.currency,
+          converted_at: new Date().toISOString(),
+        })
+        .eq('id', existingSession.id);
+
+      if (updateError) {
+        console.error('Failed to update cart session:', updateError);
+      }
     }
 
-    // Record order_completed event
-    const { error: eventError } = await supabase.from('show_events').insert({
-      show_id: cartSession.show_id,
-      viewer_id: cartSession.viewer_id,
+    // Record order_completed event in the appropriate table
+    const eventData = {
+      viewer_id: viewerId,
       event_type: 'order_completed',
+      unit_price: normalizedOrder.totalAmount,
+      quantity: 1,
+      currency: normalizedOrder.currency,
       metadata: {
         order_id: normalizedOrder.orderId,
         order_number: normalizedOrder.orderNumber,
@@ -172,32 +183,53 @@ export async function POST(
         currency: normalizedOrder.currency,
         line_items: normalizedOrder.lineItems.length,
       },
-    });
+    };
 
-    if (eventError) {
-      console.error('Failed to insert order event:', eventError);
+    if (showId) {
+      // Record in cart_events for shows
+      const { error: eventError } = await supabase.from('cart_events').insert({
+        show_id: showId,
+        ...eventData,
+      });
+
+      if (eventError) {
+        console.error('Failed to insert show order event:', eventError);
+      }
+
+      // Broadcast real-time sale notification to host dashboard
+      const channel = supabase.channel(`host:${showId}`);
+      await channel.send({
+        type: 'broadcast',
+        event: 'sale',
+        payload: {
+          order_id: normalizedOrder.orderId,
+          order_number: normalizedOrder.orderNumber,
+          amount: normalizedOrder.totalAmount,
+          currency: normalizedOrder.currency,
+        },
+      });
+      await supabase.removeChannel(channel);
+
+      console.log('Order attributed to show:', showId);
+    } else if (videoId) {
+      // Record in video_events for videos
+      const { error: eventError } = await supabase.from('video_events').insert({
+        video_id: videoId,
+        ...eventData,
+      });
+
+      if (eventError) {
+        console.error('Failed to insert video order event:', eventError);
+      }
+
+      console.log('Order attributed to video:', videoId);
     }
-
-    // Broadcast real-time sale notification to host dashboard
-    const channel = supabase.channel(`host:${cartSession.show_id}`);
-    await channel.send({
-      type: 'broadcast',
-      event: 'sale',
-      payload: {
-        order_id: normalizedOrder.orderId,
-        order_number: normalizedOrder.orderNumber,
-        amount: normalizedOrder.totalAmount,
-        currency: normalizedOrder.currency,
-      },
-    });
-    await supabase.removeChannel(channel);
-
-    console.log('Order attributed to show:', cartSession.show_id);
 
     return NextResponse.json({
       received: true,
       attributed: true,
-      showId: cartSession.show_id,
+      showId,
+      videoId,
     });
   } catch (error) {
     console.error('Webhook processing error:', error);

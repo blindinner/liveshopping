@@ -4,21 +4,29 @@ import { useState, useCallback, useRef } from 'react';
 import type { Cart, CartItem, Product } from '@/types/database';
 
 // Helper to track events (fire and forget)
+// Supports both show and video contexts
 async function trackEvent(
-  showId: string | undefined,
+  context: { showId?: string; videoId?: string },
   viewerId: string | undefined,
   eventType: string,
   productId?: string,
   metadata?: Record<string, unknown>
 ) {
-  if (!showId || !viewerId) {
-    console.warn('[Analytics] Missing showId or viewerId:', { showId, viewerId, eventType });
+  const { showId, videoId } = context;
+
+  if (!viewerId || (!showId && !videoId)) {
+    console.warn('[Analytics] Missing viewerId or context:', { showId, videoId, viewerId, eventType });
     return;
   }
 
   try {
-    console.log('[Analytics] Tracking event:', { showId, viewerId, eventType, productId });
-    const response = await fetch(`/api/shows/${showId}/events`, {
+    // Determine which endpoint to use
+    const endpoint = showId
+      ? `/api/shows/${showId}/events`
+      : `/api/videos/${videoId}/events`;
+
+    console.log('[Analytics] Tracking event:', { showId, videoId, viewerId, eventType, productId });
+    const response = await fetch(endpoint, {
       method: 'POST',
       headers: { 'Content-Type': 'application/json' },
       body: JSON.stringify({
@@ -42,12 +50,13 @@ async function trackEvent(
 
 // Helper to create/update cart session for attribution
 async function createCartSession(
-  showId: string | undefined,
+  context: { showId?: string; videoId?: string },
   viewerId: string | undefined,
   platformCartId: string,
   checkoutUrl?: string
 ) {
-  if (!showId || !viewerId) return;
+  const { showId, videoId } = context;
+  if ((!showId && !videoId) || !viewerId) return;
 
   try {
     await fetch('/api/cart-sessions', {
@@ -55,6 +64,7 @@ async function createCartSession(
       headers: { 'Content-Type': 'application/json' },
       body: JSON.stringify({
         showId,
+        videoId,
         viewerId,
         platformCartId,
         checkoutUrl,
@@ -74,7 +84,10 @@ interface UseCartOptions {
 
 // Cart state managed client-side, synced with Shopify via API routes
 export function useCart(options: UseCartOptions = {}) {
-  const { showId, viewerId } = options;
+  const { showId, videoId, viewerId } = options;
+
+  // Context object for tracking - supports both shows and videos
+  const trackingContext = { showId, videoId };
 
   const [cart, setCart] = useState<Cart>({
     id: null,
@@ -99,6 +112,10 @@ export function useCart(options: UseCartOptions = {}) {
           cartId: cart.id,
           variantId: product.shopify_variant_id,
           quantity,
+          // Pass tracking data for attribution (only used when creating new cart)
+          showId,
+          videoId,
+          viewerId,
         }),
       });
 
@@ -109,7 +126,7 @@ export function useCart(options: UseCartOptions = {}) {
       const data = await response.json();
 
       // Track add_to_cart event with value
-      trackEvent(showId, viewerId, 'add_to_cart', product.id, {
+      trackEvent(trackingContext, viewerId, 'add_to_cart', product.id, {
         quantity,
         price: product.price,
         value: product.price * quantity,
@@ -120,7 +137,7 @@ export function useCart(options: UseCartOptions = {}) {
       // Create cart session for attribution (only once per cart)
       if (!cartSessionCreated.current && data.cartId) {
         cartSessionCreated.current = true;
-        createCartSession(showId, viewerId, data.cartId, data.checkoutUrl);
+        createCartSession(trackingContext, viewerId, data.cartId, data.checkoutUrl);
       }
 
       // Update local cart state
@@ -261,7 +278,7 @@ export function useCart(options: UseCartOptions = {}) {
   const checkout = useCallback(() => {
     if (cart.checkoutUrl) {
       // Track checkout_click event with full value details
-      trackEvent(showId, viewerId, 'checkout_click', undefined, {
+      trackEvent(trackingContext, viewerId, 'checkout_click', undefined, {
         cart_total: total,
         value: total,
         item_count: itemCount,
@@ -280,7 +297,7 @@ export function useCart(options: UseCartOptions = {}) {
         `width=${width},height=${height},left=${left},top=${top},scrollbars=yes,resizable=yes`
       );
     }
-  }, [cart.checkoutUrl, showId, viewerId, total, itemCount]);
+  }, [cart.checkoutUrl, trackingContext, viewerId, total, itemCount]);
 
   return {
     cart,

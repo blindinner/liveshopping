@@ -1,11 +1,10 @@
 'use client';
 
-import { useShowAnalytics, type ProductMetrics } from '@/hooks/useShowAnalytics';
-import { useShowProducts } from '@/hooks/useRealtime';
+import { useVideoAnalytics, type VideoProductMetrics } from '@/hooks/useVideoAnalytics';
 
-interface MetricsDashboardProps {
-  showId: string;
-  viewerCount: number;
+interface VideoAnalyticsDashboardProps {
+  videoId: string;
+  productNames?: Map<string, string>;
 }
 
 interface MetricCardProps {
@@ -41,7 +40,37 @@ function MetricCard({ label, value, subValue, icon, highlight }: MetricCardProps
   );
 }
 
-// Icon components
+// Product performance row
+function ProductRow({
+  metric,
+  productName,
+  currency,
+}: {
+  metric: VideoProductMetrics;
+  productName: string;
+  currency: string;
+}) {
+  return (
+    <div className="flex items-center justify-between py-2 border-b border-white/5 last:border-0">
+      <div className="flex-1 min-w-0">
+        <div className="text-sm text-white truncate">{productName}</div>
+        <div className="text-xs text-white/40">{metric.uniqueViewers} viewers</div>
+      </div>
+      <div className="text-right ml-4">
+        <div className="text-sm font-medium text-white">{metric.addToCartCount} added</div>
+        <div className="text-xs text-white/40">
+          {new Intl.NumberFormat('en-US', {
+            style: 'currency',
+            currency,
+            minimumFractionDigits: 0,
+          }).format(metric.addToCartValue)}
+        </div>
+      </div>
+    </div>
+  );
+}
+
+// Icons
 const EyeIcon = () => (
   <svg className="w-4 h-4" fill="currentColor" viewBox="0 0 20 20">
     <path d="M10 12a2 2 0 100-4 2 2 0 000 4z" />
@@ -60,27 +89,6 @@ const UsersIcon = () => (
       strokeLinejoin="round"
       strokeWidth={2}
       d="M17 20h5v-2a3 3 0 00-5.356-1.857M17 20H7m10 0v-2c0-.656-.126-1.283-.356-1.857M7 20H2v-2a3 3 0 015.356-1.857M7 20v-2c0-.656.126-1.283.356-1.857m0 0a5.002 5.002 0 019.288 0M15 7a3 3 0 11-6 0 3 3 0 016 0zm6 3a2 2 0 11-4 0 2 2 0 014 0zM7 10a2 2 0 11-4 0 2 2 0 014 0z"
-    />
-  </svg>
-);
-
-const ChatIcon = () => (
-  <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-    <path
-      strokeLinecap="round"
-      strokeLinejoin="round"
-      strokeWidth={2}
-      d="M8 12h.01M12 12h.01M16 12h.01M21 12c0 4.418-4.03 8-9 8a9.863 9.863 0 01-4.255-.949L3 20l1.395-3.72C3.512 15.042 3 13.574 3 12c0-4.418 4.03-8 9-8s9 3.582 9 8z"
-    />
-  </svg>
-);
-
-const HeartIcon = () => (
-  <svg className="w-4 h-4" fill="currentColor" viewBox="0 0 20 20">
-    <path
-      fillRule="evenodd"
-      d="M3.172 5.172a4 4 0 015.656 0L10 6.343l1.172-1.171a4 4 0 115.656 5.656L10 17.657l-6.828-6.829a4 4 0 010-5.656z"
-      clipRule="evenodd"
     />
   </svg>
 );
@@ -129,13 +137,23 @@ const TrendingIcon = () => (
   </svg>
 );
 
-const PercentIcon = () => (
+const PackageIcon = () => (
   <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
     <path
       strokeLinecap="round"
       strokeLinejoin="round"
       strokeWidth={2}
-      d="M9 7h6m0 10v-3m-3 3h.01M9 17h.01M9 14h.01M12 14h.01M15 11h.01M12 11h.01M9 11h.01M7 21h10a2 2 0 002-2V5a2 2 0 00-2-2H7a2 2 0 00-2 2v14a2 2 0 002 2z"
+      d="M20 7l-8-4-8 4m16 0l-8 4m8-4v10l-8 4m0-10L4 7m8 4v10M4 7v10l8 4"
+    />
+  </svg>
+);
+
+const PlayIcon = () => (
+  <svg className="w-4 h-4" fill="currentColor" viewBox="0 0 20 20">
+    <path
+      fillRule="evenodd"
+      d="M10 18a8 8 0 100-16 8 8 0 000 16zM9.555 7.168A1 1 0 008 8v4a1 1 0 001.555.832l3-2a1 1 0 000-1.664l-3-2z"
+      clipRule="evenodd"
     />
   </svg>
 );
@@ -149,74 +167,16 @@ function formatCurrency(amount: number, currency: string = 'ILS'): string {
   }).format(amount);
 }
 
-// Product performance row component
-function ProductRow({
-  metric,
-  productName,
-  currency
-}: {
-  metric: ProductMetrics;
-  productName: string;
-  currency: string;
-}) {
-  return (
-    <div className="flex items-center justify-between py-2 border-b border-white/5 last:border-0">
-      <div className="flex-1 min-w-0">
-        <div className="text-sm text-white truncate">{productName}</div>
-        <div className="text-xs text-white/40">{metric.uniqueViewers} viewers</div>
-      </div>
-      <div className="text-right ml-4">
-        <div className="text-sm font-medium text-white">{metric.addToCartCount} added</div>
-        <div className="text-xs text-white/40">
-          {new Intl.NumberFormat('en-US', {
-            style: 'currency',
-            currency,
-            minimumFractionDigits: 0,
-          }).format(metric.addToCartValue)}
-        </div>
-      </div>
-    </div>
-  );
-}
-
-const PackageIcon = () => (
-  <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-    <path
-      strokeLinecap="round"
-      strokeLinejoin="round"
-      strokeWidth={2}
-      d="M20 7l-8-4-8 4m16 0l-8 4m8-4v10l-8 4m0-10L4 7m8 4v10M4 7v10l8 4"
-    />
-  </svg>
-);
-
-export function MetricsDashboard({ showId, viewerCount }: MetricsDashboardProps) {
-  const { metrics, productMetrics, isLoading } = useShowAnalytics(showId);
-  const { products } = useShowProducts(showId);
-
-  // Create a map of product IDs to names
-  const productNames = new Map<string, string>();
-  for (const showProduct of products) {
-    if (showProduct.product) {
-      productNames.set(showProduct.product.id, showProduct.product.title);
-    }
-  }
+export function VideoAnalyticsDashboard({ videoId, productNames = new Map() }: VideoAnalyticsDashboardProps) {
+  const { metrics, productMetrics, isLoading } = useVideoAnalytics(videoId);
 
   if (isLoading) {
     return (
       <div className="space-y-4">
         <section className="bg-white/5 rounded-2xl p-4">
           <div className="h-5 w-24 bg-white/10 rounded animate-pulse mb-4" />
-          <div className="grid grid-cols-2 lg:grid-cols-4 gap-3">
-            {[...Array(4)].map((_, i) => (
-              <div key={i} className="bg-white/5 rounded-xl p-3 animate-pulse h-16" />
-            ))}
-          </div>
-        </section>
-        <section className="bg-white/5 rounded-2xl p-4">
-          <div className="h-5 w-32 bg-white/10 rounded animate-pulse mb-4" />
-          <div className="grid grid-cols-2 lg:grid-cols-4 gap-3">
-            {[...Array(8)].map((_, i) => (
+          <div className="grid grid-cols-2 gap-3">
+            {[...Array(2)].map((_, i) => (
               <div key={i} className="bg-white/5 rounded-xl p-3 animate-pulse h-16" />
             ))}
           </div>
@@ -227,46 +187,36 @@ export function MetricsDashboard({ showId, viewerCount }: MetricsDashboardProps)
 
   return (
     <div className="space-y-4">
-      {/* Audience & Engagement Section */}
+      {/* Views Section */}
       <section className="bg-white/5 rounded-2xl p-4">
         <div className="flex items-center gap-2 mb-4">
-          <UsersIcon />
-          <h2 className="text-base font-semibold text-white">Audience</h2>
+          <PlayIcon />
+          <h2 className="text-base font-semibold text-white">Video Performance</h2>
         </div>
 
-        <div className="grid grid-cols-2 lg:grid-cols-4 gap-3">
+        <div className="grid grid-cols-2 gap-3">
           <MetricCard
-            label="Live Now"
-            value={viewerCount}
+            label="Video Views"
+            value={metrics.videoViews}
             icon={<EyeIcon />}
-            highlight={viewerCount > 0}
+            highlight={metrics.videoViews > 0}
           />
           <MetricCard
-            label="Total Viewers"
+            label="Unique Viewers"
             value={metrics.uniqueViewers}
             icon={<UsersIcon />}
-          />
-          <MetricCard
-            label="Chat Messages"
-            value={metrics.chatCount}
-            icon={<ChatIcon />}
-          />
-          <MetricCard
-            label="Reactions"
-            value={metrics.reactionCount}
-            icon={<HeartIcon />}
           />
         </div>
       </section>
 
-      {/* Cart & Checkout Section */}
+      {/* Sales & Conversion Section */}
       <section className="bg-white/5 rounded-2xl p-4">
         <div className="flex items-center gap-2 mb-4">
           <CartIcon />
           <h2 className="text-base font-semibold text-white">Sales & Conversion</h2>
         </div>
 
-        <div className="grid grid-cols-2 lg:grid-cols-4 gap-3">
+        <div className="grid grid-cols-2 gap-3">
           {/* Add to Cart */}
           <MetricCard
             label="Add to Cart"
@@ -277,7 +227,6 @@ export function MetricsDashboard({ showId, viewerCount }: MetricsDashboardProps)
           <MetricCard
             label="Cart Value"
             value={formatCurrency(metrics.addToCartValue, metrics.currency)}
-            subValue={`Avg: ${formatCurrency(metrics.averageCartValue, metrics.currency)}`}
             icon={<DollarIcon />}
           />
 
@@ -289,21 +238,9 @@ export function MetricsDashboard({ showId, viewerCount }: MetricsDashboardProps)
             icon={<CreditCardIcon />}
           />
           <MetricCard
-            label="Checkout Value"
-            value={formatCurrency(metrics.checkoutValue, metrics.currency)}
-            icon={<DollarIcon />}
-          />
-
-          {/* Conversion Rates */}
-          <MetricCard
-            label="Viewer → Cart"
+            label="View → Cart"
             value={`${metrics.viewerToCartRate.toFixed(1)}%`}
             icon={<TrendingIcon />}
-          />
-          <MetricCard
-            label="Cart → Checkout"
-            value={`${metrics.cartToCheckoutRate.toFixed(1)}%`}
-            icon={<PercentIcon />}
           />
 
           {/* Sales */}
@@ -340,13 +277,14 @@ export function MetricsDashboard({ showId, viewerCount }: MetricsDashboardProps)
               />
             ))}
           </div>
-
-          {productMetrics.length === 0 && (
-            <div className="text-center text-white/40 py-4 text-sm">
-              No products added to cart yet
-            </div>
-          )}
         </section>
+      )}
+
+      {/* Empty state */}
+      {metrics.videoViews === 0 && (
+        <div className="text-center text-white/40 py-8 text-sm">
+          No analytics data yet. Share your video to start tracking!
+        </div>
       )}
     </div>
   );

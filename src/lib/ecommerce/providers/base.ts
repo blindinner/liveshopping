@@ -109,4 +109,16 @@ export abstract class EcommerceProvider {
    * Returns null if platform doesn't support cart tracking
    */
   abstract extractCartIdFromOrder(order: NormalizedOrder | unknown): string | null;
+
+  /**
+   * Extract live shopping attribution data from order.
+   * This uses custom attributes embedded in the cart during checkout.
+   * Supports both live shows (showId) and shoppable videos (videoId).
+   * Returns null if no attribution data is found.
+   */
+  extractAttributionFromOrder(_order: unknown): { showId?: string; videoId?: string; viewerId: string } | null {
+    // Default implementation returns null
+    // Override in platform-specific providers that support cart attributes
+    return null;
+  }
 }

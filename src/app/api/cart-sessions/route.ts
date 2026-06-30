@@ -2,19 +2,22 @@ import { NextRequest, NextResponse } from 'next/server';
 import { createClient } from '@/lib/supabase/server';
 
 // POST /api/cart-sessions - Create or update a cart session for attribution
+// Supports both live shows (showId) and shoppable videos (videoId)
 export async function POST(request: NextRequest) {
   try {
     const body = await request.json();
 
     const {
       showId,
+      videoId,
       brandId,
       viewerId,
       platformCartId,
       platform = 'shopify',
       checkoutUrl,
     }: {
-      showId: string;
+      showId?: string;
+      videoId?: string;
       brandId?: string;
       viewerId: string;
       platformCartId: string;
@@ -22,33 +25,45 @@ export async function POST(request: NextRequest) {
       checkoutUrl?: string;
     } = body;
 
-    // Validate required fields
-    if (!showId || !viewerId || !platformCartId) {
+    // Validate required fields - need either showId or videoId
+    if ((!showId && !videoId) || !viewerId || !platformCartId) {
       return NextResponse.json(
-        { error: 'showId, viewerId, and platformCartId are required' },
+        { error: 'showId or videoId, viewerId, and platformCartId are required' },
         { status: 400 }
       );
     }
 
     const supabase = await createClient();
 
-    // Get brand_id from show if not provided
+    // Get brand_id from show or video if not provided
     let resolvedBrandId = brandId;
     if (!resolvedBrandId) {
-      const { data: show } = await supabase
-        .from('shows')
-        .select('brand_id')
-        .eq('id', showId)
-        .single();
+      if (showId) {
+        const { data: show } = await supabase
+          .from('shows')
+          .select('brand_id')
+          .eq('id', showId)
+          .single();
 
-      if (show) {
-        resolvedBrandId = show.brand_id;
+        if (show) {
+          resolvedBrandId = show.brand_id;
+        }
+      } else if (videoId) {
+        const { data: video } = await supabase
+          .from('videos')
+          .select('brand_id')
+          .eq('id', videoId)
+          .single();
+
+        if (video) {
+          resolvedBrandId = video.brand_id;
+        }
       }
     }
 
     if (!resolvedBrandId) {
       return NextResponse.json(
-        { error: 'Could not determine brand for show' },
+        { error: 'Could not determine brand' },
         { status: 400 }
       );
     }
@@ -58,7 +73,8 @@ export async function POST(request: NextRequest) {
       .from('cart_sessions')
       .upsert(
         {
-          show_id: showId,
+          show_id: showId || null,
+          video_id: videoId || null,
           brand_id: resolvedBrandId,
           viewer_id: viewerId,
           platform_cart_id: platformCartId,
@@ -91,26 +107,34 @@ export async function POST(request: NextRequest) {
   }
 }
 
-// GET /api/cart-sessions?showId=xxx - Get cart sessions for a show
+// GET /api/cart-sessions?showId=xxx or ?videoId=xxx - Get cart sessions
 export async function GET(request: NextRequest) {
   try {
     const { searchParams } = new URL(request.url);
     const showId = searchParams.get('showId');
+    const videoId = searchParams.get('videoId');
 
-    if (!showId) {
+    if (!showId && !videoId) {
       return NextResponse.json(
-        { error: 'showId query parameter is required' },
+        { error: 'showId or videoId query parameter is required' },
         { status: 400 }
       );
     }
 
     const supabase = await createClient();
 
-    const { data: cartSessions, error } = await supabase
+    let query = supabase
       .from('cart_sessions')
       .select('*')
-      .eq('show_id', showId)
       .order('created_at', { ascending: false });
+
+    if (showId) {
+      query = query.eq('show_id', showId);
+    } else if (videoId) {
+      query = query.eq('video_id', videoId);
+    }
+
+    const { data: cartSessions, error } = await query;
 
     if (error) {
       console.error('Failed to fetch cart sessions:', error);

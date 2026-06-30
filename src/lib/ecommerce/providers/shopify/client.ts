@@ -94,6 +94,10 @@ export const CREATE_CART_MUTATION = `
       cart {
         id
         checkoutUrl
+        attributes {
+          key
+          value
+        }
         lines(first: 100) {
           edges {
             node {
@@ -412,5 +416,10 @@ export interface ShopifyOrderWebhook {
     title: string;
     quantity: number;
     price: string;
+  }>;
+  // Cart attributes flow through to order as note_attributes
+  note_attributes: Array<{
+    name: string;
+    value: string;
   }>;
 }

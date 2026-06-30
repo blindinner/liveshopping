@@ -108,7 +108,7 @@ export default function EmbedVideoPage({ params }: { params: Promise<{ videoId: 
   // Generate viewer ID for the session
   const [viewerId] = useState(() => `video-${Date.now()}-${Math.random().toString(36).slice(2)}`);
 
-  // Cart hook
+  // Cart hook - includes checkout function that tracks checkout_click events
   const {
     cart,
     itemCount,
@@ -117,6 +117,7 @@ export default function EmbedVideoPage({ params }: { params: Promise<{ videoId: 
     addToCart,
     updateQuantity,
     removeFromCart,
+    checkout,
   } = useCart({ videoId, viewerId });
 
   useEffect(() => {
@@ -127,7 +128,15 @@ export default function EmbedVideoPage({ params }: { params: Promise<{ videoId: 
           const { video } = await response.json();
           setVideo(video);
 
-          // TODO: Add video analytics tracking
+          // Track video_view event
+          fetch(`/api/videos/${videoId}/events`, {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({
+              eventType: 'video_view',
+              viewerId,
+            }),
+          }).catch(console.error);
         }
       } catch (error) {
         console.error('Failed to load video:', error);
@@ -137,7 +146,7 @@ export default function EmbedVideoPage({ params }: { params: Promise<{ videoId: 
     };
 
     loadVideo();
-  }, [videoId]);
+  }, [videoId, viewerId]);
 
   // Handle product action
   const handleProductAction = useCallback(
@@ -151,12 +160,10 @@ export default function EmbedVideoPage({ params }: { params: Promise<{ videoId: 
     [addToCart]
   );
 
-  // Handle checkout
+  // Handle checkout - use checkout from useCart to track the event
   const handleCheckout = useCallback(() => {
-    if (cart.checkoutUrl) {
-      window.open(cart.checkoutUrl, '_blank', 'noopener,noreferrer');
-    }
-  }, [cart.checkoutUrl]);
+    checkout();
+  }, [checkout]);
 
   const t = {
     he: {

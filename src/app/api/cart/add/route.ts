@@ -7,7 +7,7 @@ import {
 
 export async function POST(request: Request) {
   try {
-    const { cartId, variantId, quantity } = await request.json();
+    const { cartId, variantId, quantity, showId, videoId, viewerId } = await request.json();
 
     // For MVP, use env vars. Later, fetch from brands table
     const domain = process.env.SHOPIFY_STORE_DOMAIN!;
@@ -16,7 +16,19 @@ export async function POST(request: Request) {
     const client = createShopifyClient(domain, accessToken);
 
     if (!cartId) {
-      // Create new cart with item
+      // Build cart attributes for attribution tracking
+      const attributes: Array<{ key: string; value: string }> = [];
+      if (showId) {
+        attributes.push({ key: '_live_shopping_show_id', value: showId });
+      }
+      if (videoId) {
+        attributes.push({ key: '_live_shopping_video_id', value: videoId });
+      }
+      if (viewerId) {
+        attributes.push({ key: '_live_shopping_viewer_id', value: viewerId });
+      }
+
+      // Create new cart with item and tracking attributes
       const response = await client.request<{
         cartCreate: {
           cart: { id: string; checkoutUrl: string; lines: { edges: Array<{ node: { id: string } }> } };
@@ -30,6 +42,7 @@ export async function POST(request: Request) {
               quantity,
             },
           ],
+          attributes,
         },
       });
 

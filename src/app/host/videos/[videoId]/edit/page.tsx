@@ -8,6 +8,7 @@ import { Button } from '@/components/ui/Button';
 import { Input } from '@/components/ui/Input';
 import { Badge } from '@/components/ui/Badge';
 import { ProductTimeline } from '@/components/host/ProductTimeline';
+import { VideoAnalyticsDashboard } from '@/components/host/VideoAnalyticsDashboard';
 import type { Video } from '@/types/database';
 
 export default function EditVideoPage({ params }: { params: Promise<{ videoId: string }> }) {
@@ -422,6 +423,14 @@ export default function EditVideoPage({ params }: { params: Promise<{ videoId: s
                     </svg>
                   </Link>
                 </div>
+              </section>
+            )}
+
+            {/* Video Analytics */}
+            {video.status === 'ready' && (
+              <section className="bg-white/5 rounded-2xl p-4">
+                <h2 className="text-base font-semibold text-white mb-4">Analytics</h2>
+                <VideoAnalyticsDashboard videoId={videoId} />
               </section>
             )}
           </div>

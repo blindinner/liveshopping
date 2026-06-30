@@ -4,6 +4,14 @@ import { useEffect, useState, useCallback } from 'react';
 import { createClient } from '@/lib/supabase/client';
 import type { ShowMetrics, ShowEvent } from '@/types/database';
 
+// Per-product performance metrics
+export interface ProductMetrics {
+  productId: string;
+  addToCartCount: number;
+  addToCartValue: number;
+  uniqueViewers: number;
+}
+
 const initialMetrics: ShowMetrics = {
   // Viewer metrics
   viewerCount: 0,
@@ -47,6 +55,12 @@ interface EventAggregation {
   checkoutValue: number;
   revenue: number;
   currency: string;
+  // Per-product metrics
+  productMetrics: Map<string, {
+    addToCartCount: number;
+    addToCartValue: number;
+    uniqueViewers: Set<string>;
+  }>;
 }
 
 function aggregateEvents(events: ShowEvent[]): EventAggregation {
@@ -54,6 +68,11 @@ function aggregateEvents(events: ShowEvent[]): EventAggregation {
   const uniqueViewers = new Set<string>();
   const uniqueCartViewers = new Set<string>();
   const uniqueCheckoutViewers = new Set<string>();
+  const productMetrics = new Map<string, {
+    addToCartCount: number;
+    addToCartValue: number;
+    uniqueViewers: Set<string>;
+  }>();
   let addToCartValue = 0;
   let checkoutValue = 0;
   let revenue = 0;
@@ -72,11 +91,26 @@ function aggregateEvents(events: ShowEvent[]): EventAggregation {
     if (event.event_type === 'add_to_cart') {
       uniqueCartViewers.add(event.viewer_id);
       const meta = event.metadata as Record<string, unknown>;
-      if (typeof meta?.value === 'number') {
-        addToCartValue += meta.value;
+      const eventValue = typeof meta?.value === 'number' ? meta.value : 0;
+
+      if (eventValue > 0) {
+        addToCartValue += eventValue;
       }
       if (typeof meta?.currency === 'string') {
         currency = meta.currency;
+      }
+
+      // Track per-product metrics
+      if (event.product_id) {
+        const existing = productMetrics.get(event.product_id) || {
+          addToCartCount: 0,
+          addToCartValue: 0,
+          uniqueViewers: new Set<string>(),
+        };
+        existing.addToCartCount += 1;
+        existing.addToCartValue += eventValue;
+        existing.uniqueViewers.add(event.viewer_id);
+        productMetrics.set(event.product_id, existing);
       }
     }
 
@@ -114,6 +148,7 @@ function aggregateEvents(events: ShowEvent[]): EventAggregation {
     checkoutValue,
     revenue,
     currency,
+    productMetrics,
   };
 }
 
@@ -176,8 +211,22 @@ function calculateMetrics(agg: EventAggregation): ShowMetrics {
  */
 export function useShowAnalytics(showId: string) {
   const [metrics, setMetrics] = useState<ShowMetrics>(initialMetrics);
+  const [productMetrics, setProductMetrics] = useState<ProductMetrics[]>([]);
   const [isLoading, setIsLoading] = useState(true);
   const [allEvents, setAllEvents] = useState<ShowEvent[]>([]);
+
+  // Helper to convert Map to sorted array
+  const updateProductMetrics = useCallback((aggregation: EventAggregation) => {
+    const sorted = Array.from(aggregation.productMetrics.entries())
+      .map(([productId, data]) => ({
+        productId,
+        addToCartCount: data.addToCartCount,
+        addToCartValue: data.addToCartValue,
+        uniqueViewers: data.uniqueViewers.size,
+      }))
+      .sort((a, b) => b.addToCartCount - a.addToCartCount); // Sort by most added to cart
+    setProductMetrics(sorted);
+  }, []);
 
   // Load initial metrics from database
   const loadInitialMetrics = useCallback(async () => {
@@ -240,12 +289,13 @@ export function useShowAnalytics(showId: string) {
       setAllEvents(allEvts);
       const aggregation = aggregateEvents(allEvts);
       setMetrics(calculateMetrics(aggregation));
+      updateProductMetrics(aggregation);
     } catch (error) {
       console.error('Failed to load analytics:', error);
     } finally {
       setIsLoading(false);
     }
-  }, [showId]);
+  }, [showId, updateProductMetrics]);
 
   useEffect(() => {
     loadInitialMetrics();
@@ -275,9 +325,10 @@ export function useShowAnalytics(showId: string) {
           };
 
           setAllEvents((prev) => {
-            const updated = [...prev, newEvent];
+            const updated = [...(prev || []), newEvent];
             const aggregation = aggregateEvents(updated);
             setMetrics(calculateMetrics(aggregation));
+            updateProductMetrics(aggregation);
             return updated;
           });
         }
@@ -320,9 +371,10 @@ export function useShowAnalytics(showId: string) {
           };
 
           setAllEvents((prev) => {
-            const updated = [...prev, newEvent];
+            const updated = [...(prev || []), newEvent];
             const aggregation = aggregateEvents(updated);
             setMetrics(calculateMetrics(aggregation));
+            updateProductMetrics(aggregation);
             return updated;
           });
         }
@@ -342,7 +394,7 @@ export function useShowAnalytics(showId: string) {
       supabase.removeChannel(engagementChannel);
       supabase.removeChannel(cartChannel);
     };
-  }, [showId, loadInitialMetrics]);
+  }, [showId, loadInitialMetrics, updateProductMetrics]);
 
   // Helper to refresh metrics manually
   const refresh = useCallback(() => {
@@ -352,6 +404,7 @@ export function useShowAnalytics(showId: string) {
 
   return {
     metrics,
+    productMetrics,
     isLoading,
     refresh,
   };

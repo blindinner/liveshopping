@@ -307,6 +307,47 @@ export class ShopifyProvider extends EcommerceProvider {
     return null;
   }
 
+  /**
+   * Extract live shopping attribution data from order note_attributes.
+   * Cart attributes set during checkout flow through to the order.
+   * Supports both live shows (showId) and shoppable videos (videoId).
+   */
+  extractAttributionFromOrder(order: unknown): { showId?: string; videoId?: string; viewerId: string } | null {
+    if (typeof order !== 'object' || order === null) {
+      return null;
+    }
+
+    const shopifyOrder = order as ShopifyOrderWebhook;
+    const noteAttributes = shopifyOrder.note_attributes || [];
+
+    let showId: string | null = null;
+    let videoId: string | null = null;
+    let viewerId: string | null = null;
+
+    for (const attr of noteAttributes) {
+      if (attr.name === '_live_shopping_show_id') {
+        showId = attr.value;
+      }
+      if (attr.name === '_live_shopping_video_id') {
+        videoId = attr.value;
+      }
+      if (attr.name === '_live_shopping_viewer_id') {
+        viewerId = attr.value;
+      }
+    }
+
+    // Must have viewerId and at least one of showId or videoId
+    if (viewerId && (showId || videoId)) {
+      return {
+        showId: showId || undefined,
+        videoId: videoId || undefined,
+        viewerId,
+      };
+    }
+
+    return null;
+  }
+
   private mapOrderStatus(
     financialStatus: string,
     fulfillmentStatus: string | null
