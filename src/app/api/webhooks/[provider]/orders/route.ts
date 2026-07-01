@@ -230,10 +230,12 @@ export async function POST(
       // This enables per-product purchase tracking in analytics
       for (const item of normalizedOrder.lineItems) {
         // Look up internal product ID from Shopify product ID
+        // Products are stored with GID format (gid://shopify/Product/123) but webhook has numeric ID
+        const shopifyGid = `gid://shopify/Product/${item.productId}`;
         const { data: product } = await supabase
           .from('products')
           .select('id')
-          .eq('shopify_product_id', item.productId)
+          .eq('shopify_product_id', shopifyGid)
           .single();
 
         const { error: itemError } = await supabase.from('cart_events').insert({
@@ -286,10 +288,12 @@ export async function POST(
       // Record individual item_purchased events for each line item
       for (const item of normalizedOrder.lineItems) {
         // Look up internal product ID from Shopify product ID
+        // Products are stored with GID format (gid://shopify/Product/123) but webhook has numeric ID
+        const shopifyGid = `gid://shopify/Product/${item.productId}`;
         const { data: product } = await supabase
           .from('products')
           .select('id')
-          .eq('shopify_product_id', item.productId)
+          .eq('shopify_product_id', shopifyGid)
           .single();
 
         const { error: itemError } = await supabase.from('video_events').insert({
