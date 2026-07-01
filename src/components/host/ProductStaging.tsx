@@ -538,6 +538,24 @@ export function ProductStaging({
             </p>
           </div>
           <div className="flex items-center gap-2">
+            <button
+              onClick={() => {
+                const template = 'title,price,currency,image_url,checkout_url\nExample Product,99.99,ILS,https://example.com/image.jpg,https://example.com/buy\n';
+                const blob = new Blob([template], { type: 'text/csv' });
+                const url = URL.createObjectURL(blob);
+                const a = document.createElement('a');
+                a.href = url;
+                a.download = 'products_template.csv';
+                a.click();
+                URL.revokeObjectURL(url);
+              }}
+              className="px-3 py-1.5 bg-white/10 hover:bg-white/20 text-white text-sm rounded-lg transition-colors flex items-center gap-1.5"
+            >
+              <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M4 16v1a3 3 0 003 3h10a3 3 0 003-3v-1m-4-4l-4 4m0 0l-4-4m4 4V4" />
+              </svg>
+              Template
+            </button>
             <label className="px-3 py-1.5 bg-white/10 hover:bg-white/20 text-white text-sm rounded-lg transition-colors flex items-center gap-1.5 cursor-pointer">
               <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                 <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M4 16v1a3 3 0 003 3h10a3 3 0 003-3v-1m-4-8l-4-4m0 0L8 8m4-4v12" />
@@ -568,32 +586,6 @@ export function ProductStaging({
             {csvError}
           </div>
         )}
-
-        <div className="mb-4 p-3 bg-white/5 rounded-lg text-white/50 text-xs flex items-center justify-between">
-          <div>
-            <p className="font-medium text-white/70 mb-1">CSV Format:</p>
-            <code className="text-pink-300">title,price,currency,image_url,checkout_url</code>
-            <p className="mt-1">Required: title, price. Optional: currency (default: ILS), image_url, checkout_url</p>
-          </div>
-          <button
-            onClick={() => {
-              const template = 'title,price,currency,image_url,checkout_url\nExample Product,99.99,ILS,https://example.com/image.jpg,https://example.com/buy\n';
-              const blob = new Blob([template], { type: 'text/csv' });
-              const url = URL.createObjectURL(blob);
-              const a = document.createElement('a');
-              a.href = url;
-              a.download = 'products_template.csv';
-              a.click();
-              URL.revokeObjectURL(url);
-            }}
-            className="px-3 py-1.5 bg-pink-500/20 hover:bg-pink-500/30 text-pink-300 text-xs rounded-lg transition-colors flex items-center gap-1.5 shrink-0"
-          >
-            <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-              <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M4 16v1a3 3 0 003 3h10a3 3 0 003-3v-1m-4-4l-4 4m0 0l-4-4m4 4V4" />
-            </svg>
-            Download Template
-          </button>
-        </div>
 
         {showManualForm && (
           <div className="space-y-4">

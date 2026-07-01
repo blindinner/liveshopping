@@ -10,6 +10,8 @@ export interface ProductMetrics {
   addToCartCount: number;
   addToCartValue: number;
   uniqueViewers: number;
+  purchaseCount: number;
+  purchaseValue: number;
 }
 
 const initialMetrics: ShowMetrics = {
@@ -60,6 +62,8 @@ interface EventAggregation {
     addToCartCount: number;
     addToCartValue: number;
     uniqueViewers: Set<string>;
+    purchaseCount: number;
+    purchaseValue: number;
   }>;
 }
 
@@ -72,6 +76,8 @@ function aggregateEvents(events: ShowEvent[]): EventAggregation {
     addToCartCount: number;
     addToCartValue: number;
     uniqueViewers: Set<string>;
+    purchaseCount: number;
+    purchaseValue: number;
   }>();
   let addToCartValue = 0;
   let checkoutValue = 0;
@@ -106,12 +112,33 @@ function aggregateEvents(events: ShowEvent[]): EventAggregation {
           addToCartCount: 0,
           addToCartValue: 0,
           uniqueViewers: new Set<string>(),
+          purchaseCount: 0,
+          purchaseValue: 0,
         };
         existing.addToCartCount += 1;
         existing.addToCartValue += eventValue;
         existing.uniqueViewers.add(event.viewer_id);
         productMetrics.set(event.product_id, existing);
       }
+    }
+
+    // Track item purchases per product
+    if (event.event_type === 'item_purchased' && event.product_id) {
+      const meta = event.metadata as Record<string, unknown>;
+      const quantity = typeof meta?.quantity === 'number' ? meta.quantity : 1;
+      const price = typeof meta?.price === 'number' ? meta.price : 0;
+      const itemValue = price * quantity;
+
+      const existing = productMetrics.get(event.product_id) || {
+        addToCartCount: 0,
+        addToCartValue: 0,
+        uniqueViewers: new Set<string>(),
+        purchaseCount: 0,
+        purchaseValue: 0,
+      };
+      existing.purchaseCount += quantity;
+      existing.purchaseValue += itemValue;
+      productMetrics.set(event.product_id, existing);
     }
 
     // Track checkout clicks
@@ -226,8 +253,10 @@ export function useShowAnalytics(showId: string) {
         addToCartCount: data.addToCartCount,
         addToCartValue: data.addToCartValue,
         uniqueViewers: data.uniqueViewers.size,
+        purchaseCount: data.purchaseCount,
+        purchaseValue: data.purchaseValue,
       }))
-      .sort((a, b) => b.addToCartCount - a.addToCartCount); // Sort by most added to cart
+      .sort((a, b) => b.purchaseCount - a.purchaseCount || b.addToCartCount - a.addToCartCount); // Sort by most purchased, then most added to cart
     setProductMetrics(sorted);
   }, []);
 

@@ -226,6 +226,37 @@ export async function POST(
         console.error('Failed to insert show order event:', eventError);
       }
 
+      // Record individual item_purchased events for each line item
+      // This enables per-product purchase tracking in analytics
+      for (const item of normalizedOrder.lineItems) {
+        // Look up internal product ID from Shopify product ID
+        const { data: product } = await supabase
+          .from('products')
+          .select('id')
+          .eq('shopify_product_id', item.productId)
+          .single();
+
+        const { error: itemError } = await supabase.from('cart_events').insert({
+          show_id: showId,
+          viewer_id: viewerId,
+          event_type: 'item_purchased',
+          product_id: product?.id || null,
+          unit_price: item.price,
+          quantity: item.quantity,
+          currency: normalizedOrder.currency,
+          metadata: {
+            order_id: normalizedOrder.orderId,
+            shopify_product_id: item.productId,
+            variant_id: item.variantId,
+            product_title: item.title,
+          },
+        });
+
+        if (itemError) {
+          console.error('Failed to insert item_purchased event:', itemError);
+        }
+      }
+
       // Broadcast real-time sale notification to host dashboard
       const channel = supabase.channel(`host:${showId}`);
       await channel.send({
@@ -250,6 +281,36 @@ export async function POST(
 
       if (eventError) {
         console.error('Failed to insert video order event:', eventError);
+      }
+
+      // Record individual item_purchased events for each line item
+      for (const item of normalizedOrder.lineItems) {
+        // Look up internal product ID from Shopify product ID
+        const { data: product } = await supabase
+          .from('products')
+          .select('id')
+          .eq('shopify_product_id', item.productId)
+          .single();
+
+        const { error: itemError } = await supabase.from('video_events').insert({
+          video_id: videoId,
+          viewer_id: viewerId,
+          event_type: 'item_purchased',
+          product_id: product?.id || null,
+          unit_price: item.price,
+          quantity: item.quantity,
+          currency: normalizedOrder.currency,
+          metadata: {
+            order_id: normalizedOrder.orderId,
+            shopify_product_id: item.productId,
+            variant_id: item.variantId,
+            product_title: item.title,
+          },
+        });
+
+        if (itemError) {
+          console.error('Failed to insert video item_purchased event:', itemError);
+        }
       }
 
       console.log('Order attributed to video:', videoId);

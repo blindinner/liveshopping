@@ -202,6 +202,7 @@ export type ShowEventType =
   | 'reaction'
   | 'chat_message'
   | 'order_completed'
+  | 'item_purchased'
   | 'poll_vote'
   | 'video_view'
   | 'video_play'
