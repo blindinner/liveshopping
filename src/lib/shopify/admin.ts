@@ -74,17 +74,11 @@ export async function registerShopifyWebhooks(
   // First, delete any existing webhooks from our app
   await deleteExistingWebhooks(shop, accessToken, appUrl);
 
+  // Only use orders/paid to avoid duplicate events
+  // orders/paid fires after payment is confirmed, which is what we want for revenue tracking
   const webhooks: WebhookConfig[] = [
     {
-      topic: 'orders/create',
-      address: `${appUrl}/api/webhooks/shopify/orders`,
-    },
-    {
       topic: 'orders/paid',
-      address: `${appUrl}/api/webhooks/shopify/orders`,
-    },
-    {
-      topic: 'orders/cancelled',
       address: `${appUrl}/api/webhooks/shopify/orders`,
     },
     {
