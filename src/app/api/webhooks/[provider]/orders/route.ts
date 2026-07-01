@@ -169,6 +169,36 @@ export async function POST(
       }
     }
 
+    // Check if we've already processed this order (deduplication)
+    // This prevents duplicate events from orders/create AND orders/paid webhooks
+    if (showId) {
+      const { data: existingEvent } = await supabase
+        .from('cart_events')
+        .select('id')
+        .eq('show_id', showId)
+        .eq('event_type', 'order_completed')
+        .eq('metadata->>order_id', normalizedOrder.orderId)
+        .single();
+
+      if (existingEvent) {
+        console.log('Order already processed for show, skipping:', normalizedOrder.orderId);
+        return NextResponse.json({ received: true, attributed: true, duplicate: true });
+      }
+    } else if (videoId) {
+      const { data: existingEvent } = await supabase
+        .from('video_events')
+        .select('id')
+        .eq('video_id', videoId)
+        .eq('event_type', 'order_completed')
+        .eq('metadata->>order_id', normalizedOrder.orderId)
+        .single();
+
+      if (existingEvent) {
+        console.log('Order already processed for video, skipping:', normalizedOrder.orderId);
+        return NextResponse.json({ received: true, attributed: true, duplicate: true });
+      }
+    }
+
     // Record order_completed event in the appropriate table
     const eventData = {
       viewer_id: viewerId,
