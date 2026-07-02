@@ -1,10 +1,9 @@
 'use client';
 
-import { useVideoAnalytics, type VideoProductMetrics } from '@/hooks/useVideoAnalytics';
+import { useVideoAnalytics } from '@/hooks/useVideoAnalytics';
 
 interface VideoAnalyticsDashboardProps {
   videoId: string;
-  productNames?: Map<string, string>;
 }
 
 interface MetricCardProps {
@@ -40,36 +39,6 @@ function MetricCard({ label, value, subValue, icon, highlight }: MetricCardProps
   );
 }
 
-// Product performance row
-function ProductRow({
-  metric,
-  productName,
-  currency,
-}: {
-  metric: VideoProductMetrics;
-  productName: string;
-  currency: string;
-}) {
-  return (
-    <div className="flex items-center justify-between py-2 border-b border-white/5 last:border-0">
-      <div className="flex-1 min-w-0">
-        <div className="text-sm text-white truncate">{productName}</div>
-        <div className="text-xs text-white/40">{metric.uniqueViewers} viewers</div>
-      </div>
-      <div className="text-right ml-4">
-        <div className="text-sm font-medium text-white">{metric.addToCartCount} added</div>
-        <div className="text-xs text-white/40">
-          {new Intl.NumberFormat('en-US', {
-            style: 'currency',
-            currency,
-            minimumFractionDigits: 0,
-          }).format(metric.addToCartValue)}
-        </div>
-      </div>
-    </div>
-  );
-}
-
 // Icons
 const EyeIcon = () => (
   <svg className="w-4 h-4" fill="currentColor" viewBox="0 0 20 20">
@@ -93,17 +62,6 @@ const UsersIcon = () => (
   </svg>
 );
 
-const CartIcon = () => (
-  <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-    <path
-      strokeLinecap="round"
-      strokeLinejoin="round"
-      strokeWidth={2}
-      d="M3 3h2l.4 2M7 13h10l4-8H5.4M7 13L5.4 5M7 13l-2.293 2.293c-.63.63-.184 1.707.707 1.707H17m0 0a2 2 0 100 4 2 2 0 000-4zm-8 2a2 2 0 11-4 0 2 2 0 014 0z"
-    />
-  </svg>
-);
-
 const CreditCardIcon = () => (
   <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
     <path
@@ -122,28 +80,6 @@ const DollarIcon = () => (
       strokeLinejoin="round"
       strokeWidth={2}
       d="M12 8c-1.657 0-3 .895-3 2s1.343 2 3 2 3 .895 3 2-1.343 2-3 2m0-8c1.11 0 2.08.402 2.599 1M12 8V7m0 1v8m0 0v1m0-1c-1.11 0-2.08-.402-2.599-1M21 12a9 9 0 11-18 0 9 9 0 0118 0z"
-    />
-  </svg>
-);
-
-const TrendingIcon = () => (
-  <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-    <path
-      strokeLinecap="round"
-      strokeLinejoin="round"
-      strokeWidth={2}
-      d="M13 7h8m0 0v8m0-8l-8 8-4-4-6 6"
-    />
-  </svg>
-);
-
-const PackageIcon = () => (
-  <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-    <path
-      strokeLinecap="round"
-      strokeLinejoin="round"
-      strokeWidth={2}
-      d="M20 7l-8-4-8 4m16 0l-8 4m8-4v10l-8 4m0-10L4 7m8 4v10M4 7v10l8 4"
     />
   </svg>
 );
@@ -178,8 +114,8 @@ function formatCurrency(amount: number, currency: string = 'ILS'): string {
   }).format(amount);
 }
 
-export function VideoAnalyticsDashboard({ videoId, productNames = new Map() }: VideoAnalyticsDashboardProps) {
-  const { metrics, productMetrics, isLoading } = useVideoAnalytics(videoId);
+export function VideoAnalyticsDashboard({ videoId }: VideoAnalyticsDashboardProps) {
+  const { metrics, isLoading } = useVideoAnalytics(videoId);
 
   if (isLoading) {
     return (
@@ -227,41 +163,14 @@ export function VideoAnalyticsDashboard({ videoId, productNames = new Map() }: V
         </div>
       </section>
 
-      {/* Sales & Conversion Section */}
+      {/* Sales Section */}
       <section className="bg-white/5 rounded-2xl p-4">
         <div className="flex items-center gap-2 mb-4">
-          <CartIcon />
-          <h2 className="text-base font-semibold text-white">Sales & Conversion</h2>
+          <DollarIcon />
+          <h2 className="text-base font-semibold text-white">Sales</h2>
         </div>
 
         <div className="grid grid-cols-2 gap-3">
-          {/* Add to Cart */}
-          <MetricCard
-            label="Add to Cart"
-            value={metrics.addToCartCount}
-            subValue={`${metrics.uniqueAddToCartViewers} viewers`}
-            icon={<CartIcon />}
-          />
-          <MetricCard
-            label="Cart Value"
-            value={formatCurrency(metrics.addToCartValue, metrics.currency)}
-            icon={<DollarIcon />}
-          />
-
-          {/* Checkout */}
-          <MetricCard
-            label="Checkouts"
-            value={metrics.checkoutClickCount}
-            subValue={`${metrics.uniqueCheckoutViewers} viewers`}
-            icon={<CreditCardIcon />}
-          />
-          <MetricCard
-            label="View → Cart"
-            value={`${metrics.viewerToCartRate.toFixed(1)}%`}
-            icon={<TrendingIcon />}
-          />
-
-          {/* Sales */}
           <MetricCard
             label="Orders"
             value={metrics.salesCount}
@@ -277,29 +186,9 @@ export function VideoAnalyticsDashboard({ videoId, productNames = new Map() }: V
         </div>
       </section>
 
-      {/* Product Performance Section */}
-      {productMetrics.length > 0 && (
-        <section className="bg-white/5 rounded-2xl p-4">
-          <div className="flex items-center gap-2 mb-4">
-            <PackageIcon />
-            <h2 className="text-base font-semibold text-white">Top Products</h2>
-          </div>
-
-          <div className="space-y-1">
-            {productMetrics.slice(0, 5).map((metric) => (
-              <ProductRow
-                key={metric.productId}
-                metric={metric}
-                productName={productNames.get(metric.productId) || 'Unknown Product'}
-                currency={metrics.currency}
-              />
-            ))}
-          </div>
-        </section>
-      )}
 
       {/* Empty state */}
-      {metrics.videoViews === 0 && metrics.productClickCount === 0 && (
+      {metrics.videoViews === 0 && metrics.productClickCount === 0 && metrics.salesCount === 0 && (
         <div className="text-center text-white/40 py-8 text-sm">
           No analytics data yet. Share your video to start tracking!
         </div>
