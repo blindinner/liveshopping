@@ -23,6 +23,7 @@ export async function GET(request: Request) {
   let activeVideoIndex = null;
   let activeVideoElement = null;
   let globalMuted = true; // Shared mute state across all videos
+  const viewedVideos = new Set(); // Track which videos have been viewed this session
 
   // Generate viewer ID for tracking
   const viewerId = 'carousel-' + Date.now() + '-' + Math.random().toString(36).slice(2);
@@ -283,6 +284,20 @@ export async function GET(request: Request) {
       }
 
       activeVideoIndex = index;
+
+      // Track video view (only once per video per session)
+      if (!viewedVideos.has(video.id)) {
+        viewedVideos.add(video.id);
+        fetch(\`\${BASE_URL}/api/videos/\${video.id}/events\`, {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({
+            eventType: 'video_view',
+            viewerId: viewerId,
+            metadata: { source: 'carousel_widget' }
+          })
+        }).catch(console.error);
+      }
 
       if (thumbnailVideo) {
         thumbnailVideo.loop = true;
