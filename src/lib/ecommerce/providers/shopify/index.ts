@@ -312,8 +312,9 @@ export class ShopifyProvider extends EcommerceProvider {
   /**
    * Extract live shopping attribution data from order.
    *
-   * For live shows: Uses note_attributes (cart attributes flow through to order)
-   * For shoppable videos: Falls back to parsing landing_site URL params
+   * For live shows: Uses note_attributes with _live_shopping_* prefix
+   * For shoppable videos: Uses note_attributes with _ssv_* prefix (injected by tracking.js)
+   * Fallback: Parses landing_site URL params
    *
    * Supports both live shows (showId) and shoppable videos (videoId).
    */
@@ -329,8 +330,9 @@ export class ShopifyProvider extends EcommerceProvider {
     let videoId: string | null = null;
     let viewerId: string | null = null;
 
-    // First, try to extract from note_attributes (live shows use this)
+    // First, try to extract from note_attributes
     for (const attr of noteAttributes) {
+      // Live shows use _live_shopping_* prefix
       if (attr.name === '_live_shopping_show_id') {
         showId = attr.value;
       }
@@ -338,6 +340,13 @@ export class ShopifyProvider extends EcommerceProvider {
         videoId = attr.value;
       }
       if (attr.name === '_live_shopping_viewer_id') {
+        viewerId = attr.value;
+      }
+      // Shoppable videos use _ssv_* prefix (injected by tracking.js widget)
+      if (attr.name === '_ssv_video_id') {
+        videoId = attr.value;
+      }
+      if (attr.name === '_ssv_viewer_id') {
         viewerId = attr.value;
       }
     }
