@@ -8,6 +8,10 @@ export interface VideoMetrics {
   videoViews: number;
   uniqueViewers: number;
 
+  // Product click metrics
+  productClickCount: number;
+  uniqueProductClickViewers: number;
+
   // Cart metrics
   addToCartCount: number;
   uniqueAddToCartViewers: number;
@@ -52,6 +56,8 @@ interface VideoEvent {
 const initialMetrics: VideoMetrics = {
   videoViews: 0,
   uniqueViewers: 0,
+  productClickCount: 0,
+  uniqueProductClickViewers: 0,
   addToCartCount: 0,
   uniqueAddToCartViewers: 0,
   addToCartValue: 0,
@@ -70,6 +76,7 @@ function aggregateEvents(events: VideoEvent[]): {
   productMetrics: VideoProductMetrics[];
 } {
   const uniqueViewers = new Set<string>();
+  const uniqueProductClickViewers = new Set<string>();
   const uniqueCartViewers = new Set<string>();
   const uniqueCheckoutViewers = new Set<string>();
   const productMetricsMap = new Map<string, {
@@ -79,6 +86,7 @@ function aggregateEvents(events: VideoEvent[]): {
   }>();
 
   let videoViews = 0;
+  let productClickCount = 0;
   let addToCartCount = 0;
   let addToCartValue = 0;
   let checkoutClickCount = 0;
@@ -92,6 +100,12 @@ function aggregateEvents(events: VideoEvent[]): {
     if (event.event_type === 'video_view') {
       videoViews++;
       uniqueViewers.add(event.viewer_id);
+    }
+
+    // Track product clicks
+    if (event.event_type === 'product_click') {
+      productClickCount++;
+      uniqueProductClickViewers.add(event.viewer_id);
     }
 
     // Track add to cart
@@ -166,6 +180,8 @@ function aggregateEvents(events: VideoEvent[]): {
     metrics: {
       videoViews,
       uniqueViewers: uniqueViewers.size,
+      productClickCount,
+      uniqueProductClickViewers: uniqueProductClickViewers.size,
       addToCartCount,
       uniqueAddToCartViewers: uniqueCartViewers.size,
       addToCartValue,

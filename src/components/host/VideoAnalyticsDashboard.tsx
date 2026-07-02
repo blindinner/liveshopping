@@ -158,6 +158,17 @@ const PlayIcon = () => (
   </svg>
 );
 
+const ClickIcon = () => (
+  <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+    <path
+      strokeLinecap="round"
+      strokeLinejoin="round"
+      strokeWidth={2}
+      d="M15 15l-2 5L9 9l11 4-5 2zm0 0l5 5M7.188 2.239l.777 2.897M5.136 7.965l-2.898-.777M13.95 4.05l-2.122 2.122m-5.657 5.656l-2.12 2.122"
+    />
+  </svg>
+);
+
 function formatCurrency(amount: number, currency: string = 'ILS'): string {
   return new Intl.NumberFormat('en-US', {
     style: 'currency',
@@ -205,6 +216,13 @@ export function VideoAnalyticsDashboard({ videoId, productNames = new Map() }: V
             label="Unique Viewers"
             value={metrics.uniqueViewers}
             icon={<UsersIcon />}
+          />
+          <MetricCard
+            label="Product Clicks"
+            value={metrics.productClickCount}
+            subValue={`${metrics.uniqueProductClickViewers} viewers`}
+            icon={<ClickIcon />}
+            highlight={metrics.productClickCount > 0}
           />
         </div>
       </section>
@@ -281,7 +299,7 @@ export function VideoAnalyticsDashboard({ videoId, productNames = new Map() }: V
       )}
 
       {/* Empty state */}
-      {metrics.videoViews === 0 && (
+      {metrics.videoViews === 0 && metrics.productClickCount === 0 && (
         <div className="text-center text-white/40 py-8 text-sm">
           No analytics data yet. Share your video to start tracking!
         </div>
