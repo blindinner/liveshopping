@@ -155,6 +155,101 @@ export async function createStorefrontToken(
 }
 
 /**
+ * Delete existing script tags that match our app URL
+ */
+async function deleteExistingScriptTags(
+  shop: string,
+  accessToken: string,
+  appUrl: string
+): Promise<void> {
+  try {
+    const response = await fetch(
+      `https://${shop}/admin/api/${SHOPIFY_API_VERSION}/script_tags.json`,
+      {
+        headers: {
+          'X-Shopify-Access-Token': accessToken,
+        },
+      }
+    );
+
+    if (!response.ok) {
+      console.error('Failed to list script tags:', await response.text());
+      return;
+    }
+
+    const data = await response.json();
+    const scriptTags = data.script_tags || [];
+
+    for (const scriptTag of scriptTags) {
+      if (scriptTag.src && scriptTag.src.includes(appUrl)) {
+        try {
+          await fetch(
+            `https://${shop}/admin/api/${SHOPIFY_API_VERSION}/script_tags/${scriptTag.id}.json`,
+            {
+              method: 'DELETE',
+              headers: {
+                'X-Shopify-Access-Token': accessToken,
+              },
+            }
+          );
+          console.log(`Deleted existing script tag: ${scriptTag.src} (${scriptTag.id})`);
+        } catch (err) {
+          console.error(`Failed to delete script tag ${scriptTag.id}:`, err);
+        }
+      }
+    }
+  } catch (error) {
+    console.error('Error cleaning up existing script tags:', error);
+  }
+}
+
+/**
+ * Register script tags for a Shopify store
+ * This injects our tracking script on all pages of the storefront
+ */
+export async function registerShopifyScriptTags(
+  shop: string,
+  accessToken: string,
+  appUrl: string,
+  brandId: string
+): Promise<void> {
+  // First, delete any existing script tags from our app
+  await deleteExistingScriptTags(shop, accessToken, appUrl);
+
+  // Register the widget script which includes tracking
+  const scriptSrc = `${appUrl}/widget/${brandId}`;
+
+  try {
+    const response = await fetch(
+      `https://${shop}/admin/api/${SHOPIFY_API_VERSION}/script_tags.json`,
+      {
+        method: 'POST',
+        headers: {
+          'X-Shopify-Access-Token': accessToken,
+          'Content-Type': 'application/json',
+        },
+        body: JSON.stringify({
+          script_tag: {
+            event: 'onload',
+            src: scriptSrc,
+            display_scope: 'all', // Load on all pages (not just online store)
+          },
+        }),
+      }
+    );
+
+    if (!response.ok) {
+      const error = await response.text();
+      console.error('Failed to register script tag:', error);
+    } else {
+      console.log(`Registered script tag: ${scriptSrc}`);
+    }
+  } catch (error) {
+    console.error('Error registering script tag:', error);
+  }
+}
+
+/**
  * Get shop information using the Admin API
  */
 export async function getShopInfo(

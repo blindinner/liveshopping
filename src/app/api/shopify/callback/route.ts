@@ -3,6 +3,7 @@ import { createServiceClient } from '@/lib/supabase/server';
 import { verifyOAuthHmac, exchangeCodeForToken } from '@/lib/shopify/oauth';
 import {
   registerShopifyWebhooks,
+  registerShopifyScriptTags,
   createStorefrontToken,
   getShopInfo,
 } from '@/lib/shopify/admin';
@@ -157,6 +158,15 @@ export async function GET(request: NextRequest) {
     } catch (error) {
       console.error('Failed to register webhooks:', error);
       // Continue even if webhook registration fails
+    }
+
+    // Register script tags for tracking on all pages
+    try {
+      await registerShopifyScriptTags(shop, access_token, appUrl, brandId);
+      console.log(`Registered script tags for ${shop}`);
+    } catch (error) {
+      console.error('Failed to register script tags:', error);
+      // Continue even if script tag registration fails
     }
 
     // Redirect to success page
