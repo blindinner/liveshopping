@@ -10,6 +10,151 @@ export async function GET(
   const baseUrl = `${url.protocol}//${url.host}`;
 
   const script = `
+// =====================================================
+// Shoppable Video Attribution Tracking
+// Captures URL params and injects them into cart attributes
+// =====================================================
+(function() {
+  if (window.__ssvTrackingInitialized) return;
+  window.__ssvTrackingInitialized = true;
+
+  const STORAGE_KEY = 'ssv_attribution';
+  const ATTR_VIDEO_ID = '_ssv_video_id';
+  const ATTR_VIEWER_ID = '_ssv_viewer_id';
+
+  function captureAttributionParams() {
+    const url = new URL(window.location.href);
+    const ssvid = url.searchParams.get('ssvid');
+    const ssvwr = url.searchParams.get('ssvwr');
+
+    if (ssvid && ssvwr) {
+      const attribution = {
+        videoId: ssvid,
+        viewerId: ssvwr,
+        capturedAt: Date.now(),
+        landingPage: window.location.pathname
+      };
+      try {
+        localStorage.setItem(STORAGE_KEY, JSON.stringify(attribution));
+      } catch (e) {}
+    }
+  }
+
+  function getStoredAttribution() {
+    try {
+      const stored = localStorage.getItem(STORAGE_KEY);
+      if (!stored) return null;
+      const attribution = JSON.parse(stored);
+      const age = Date.now() - attribution.capturedAt;
+      if (age > 7 * 24 * 60 * 60 * 1000) {
+        localStorage.removeItem(STORAGE_KEY);
+        return null;
+      }
+      return attribution;
+    } catch (e) {
+      return null;
+    }
+  }
+
+  function interceptCartAPI() {
+    const originalFetch = window.fetch;
+    window.fetch = function(url, options) {
+      if (typeof url === 'string' && url.includes('/cart/add')) {
+        const attribution = getStoredAttribution();
+        if (attribution && options && options.body) {
+          try {
+            let body;
+            if (typeof options.body === 'string') {
+              try { body = JSON.parse(options.body); }
+              catch { body = Object.fromEntries(new URLSearchParams(options.body)); }
+            } else if (options.body instanceof FormData) {
+              body = Object.fromEntries(options.body.entries());
+            }
+            if (body) {
+              if (!body.attributes) body.attributes = {};
+              body.attributes[ATTR_VIDEO_ID] = attribution.videoId;
+              body.attributes[ATTR_VIEWER_ID] = attribution.viewerId;
+              return originalFetch.call(this, url, {
+                ...options,
+                body: JSON.stringify(body),
+                headers: { ...options.headers, 'Content-Type': 'application/json' }
+              });
+            }
+          } catch (e) {}
+        }
+      }
+      return originalFetch.apply(this, arguments);
+    };
+
+    const originalXHROpen = XMLHttpRequest.prototype.open;
+    const originalXHRSend = XMLHttpRequest.prototype.send;
+    XMLHttpRequest.prototype.open = function(method, url) {
+      this._ssvUrl = url;
+      return originalXHROpen.apply(this, arguments);
+    };
+    XMLHttpRequest.prototype.send = function(body) {
+      if (this._ssvUrl && this._ssvUrl.includes('/cart/add')) {
+        const attribution = getStoredAttribution();
+        if (attribution && body) {
+          try {
+            let parsedBody;
+            if (typeof body === 'string') {
+              try { parsedBody = JSON.parse(body); }
+              catch { parsedBody = Object.fromEntries(new URLSearchParams(body)); }
+            }
+            if (parsedBody) {
+              if (!parsedBody.attributes) parsedBody.attributes = {};
+              parsedBody.attributes[ATTR_VIDEO_ID] = attribution.videoId;
+              parsedBody.attributes[ATTR_VIEWER_ID] = attribution.viewerId;
+              this.setRequestHeader('Content-Type', 'application/json');
+              return originalXHRSend.call(this, JSON.stringify(parsedBody));
+            }
+          } catch (e) {}
+        }
+      }
+      return originalXHRSend.apply(this, arguments);
+    };
+  }
+
+  function interceptFormSubmissions() {
+    document.addEventListener('submit', function(e) {
+      const form = e.target;
+      if (!form || form.tagName !== 'FORM') return;
+      const action = form.action || '';
+      if (!action.includes('/cart/add')) return;
+      const attribution = getStoredAttribution();
+      if (!attribution) return;
+      if (!form.querySelector('input[name="attributes[' + ATTR_VIDEO_ID + ']"]')) {
+        const videoInput = document.createElement('input');
+        videoInput.type = 'hidden';
+        videoInput.name = 'attributes[' + ATTR_VIDEO_ID + ']';
+        videoInput.value = attribution.videoId;
+        form.appendChild(videoInput);
+      }
+      if (!form.querySelector('input[name="attributes[' + ATTR_VIEWER_ID + ']"]')) {
+        const viewerInput = document.createElement('input');
+        viewerInput.type = 'hidden';
+        viewerInput.name = 'attributes[' + ATTR_VIEWER_ID + ']';
+        viewerInput.value = attribution.viewerId;
+        form.appendChild(viewerInput);
+      }
+    }, true);
+  }
+
+  captureAttributionParams();
+  interceptCartAPI();
+  interceptFormSubmissions();
+
+  window.ShoppableVideosTracking = {
+    getAttribution: getStoredAttribution,
+    clearAttribution: function() { localStorage.removeItem(STORAGE_KEY); }
+  };
+})();
+
+// =====================================================
+// Live Shopping Widget
+// Shows live bubble when a show is active
+// =====================================================
 (function() {
   const BRAND_ID = '${brandId}';
   const BASE_URL = '${baseUrl}';
