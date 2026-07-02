@@ -1,5 +1,5 @@
 import { NextRequest, NextResponse } from 'next/server';
-import { createClient } from '@/lib/supabase/server';
+import { createServiceClient } from '@/lib/supabase/server';
 
 // CORS headers for widget embeds
 const corsHeaders = {
@@ -45,7 +45,7 @@ export async function POST(
       );
     }
 
-    const supabase = await createClient();
+    const supabase = createServiceClient();
 
     // Map checkout_click to checkout_start for storage
     const storedEventType = eventType === 'checkout_click' ? 'checkout_start' : eventType;
@@ -96,7 +96,7 @@ export async function GET(
 ) {
   try {
     const { videoId } = await params;
-    const supabase = await createClient();
+    const supabase = createServiceClient();
 
     const { data: events, error } = await supabase
       .from('video_events')
