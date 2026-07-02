@@ -1,6 +1,18 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { createClient } from '@/lib/supabase/server';
 
+// CORS headers for widget embeds
+const corsHeaders = {
+  'Access-Control-Allow-Origin': '*',
+  'Access-Control-Allow-Methods': 'GET, POST, OPTIONS',
+  'Access-Control-Allow-Headers': 'Content-Type',
+};
+
+// OPTIONS handler for CORS preflight
+export async function OPTIONS() {
+  return new NextResponse(null, { headers: corsHeaders });
+}
+
 // Event types for video analytics
 type VideoEventType = 'video_view' | 'product_click' | 'add_to_cart' | 'checkout_click' | 'order_completed';
 
@@ -29,7 +41,7 @@ export async function POST(
     if (!eventType || !viewerId) {
       return NextResponse.json(
         { error: 'eventType and viewerId are required' },
-        { status: 400 }
+        { status: 400, headers: corsHeaders }
       );
     }
 
@@ -63,16 +75,16 @@ export async function POST(
       });
       return NextResponse.json(
         { error: 'Failed to record event', details: error.message, code: error.code },
-        { status: 500 }
+        { status: 500, headers: corsHeaders }
       );
     }
 
-    return NextResponse.json({ event });
+    return NextResponse.json({ event }, { headers: corsHeaders });
   } catch (error) {
     console.error('Video events API error:', error);
     return NextResponse.json(
       { error: 'Internal server error' },
-      { status: 500 }
+      { status: 500, headers: corsHeaders }
     );
   }
 }
@@ -95,7 +107,7 @@ export async function GET(
       console.error('Failed to fetch video events:', error);
       return NextResponse.json(
         { error: 'Failed to fetch events' },
-        { status: 500 }
+        { status: 500, headers: corsHeaders }
       );
     }
 
@@ -125,12 +137,12 @@ export async function GET(
       counts,
       uniqueViewers: uniqueViewers.size,
       totalRevenue,
-    });
+    }, { headers: corsHeaders });
   } catch (error) {
     console.error('Video events API error:', error);
     return NextResponse.json(
       { error: 'Internal server error' },
-      { status: 500 }
+      { status: 500, headers: corsHeaders }
     );
   }
 }
