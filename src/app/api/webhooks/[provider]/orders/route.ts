@@ -119,12 +119,16 @@ export async function POST(
     // Try to extract attribution from cart attributes (most reliable method)
     const attribution = ecommerceProvider.extractAttributionFromOrder(payload);
 
+    // Debug: Log landing_site to see what Shopify is sending
     console.log('Webhook received:', {
       platform,
       eventType,
       orderId: normalizedOrder.orderId,
       total: normalizedOrder.totalAmount,
       attribution,
+      landing_site: payload.landing_site,
+      referring_site: payload.referring_site,
+      note_attributes: payload.note_attributes,
     });
 
     // Skip if no attribution data (cart wasn't created during a live show or video)
