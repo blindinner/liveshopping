@@ -422,4 +422,8 @@ export interface ShopifyOrderWebhook {
     name: string;
     value: string;
   }>;
+  // Landing page URL - captures UTM params for shoppable video attribution
+  landing_site: string | null;
+  // Referring site URL
+  referring_site: string | null;
 }

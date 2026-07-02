@@ -72,16 +72,47 @@ export function VideoModal({
     };
   }, [isOpen, onClose, onNext, onPrevious, hasNext, hasPrevious]);
 
-  // Handle product action
+  // Handle product action - track click and redirect to product page with attribution params
   const handleProductAction = useCallback(
     async (product: Product) => {
-      if (product.source === 'manual' && product.checkout_url) {
-        window.open(product.checkout_url, '_blank', 'noopener,noreferrer');
-      } else {
-        await addToCart(product);
+      // Track product click event
+      fetch(`/api/videos/${video.id}/events`, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          eventType: 'product_click',
+          viewerId,
+          productId: product.id,
+          metadata: {
+            product_title: product.title,
+            price: product.price,
+            currency: product.currency,
+          },
+        }),
+      }).catch(console.error);
+
+      // Build product URL with attribution params
+      // Shopify captures these in landing_site field on orders
+      let productUrl: string | null = null;
+      if (product.checkout_url) {
+        productUrl = product.checkout_url;
+      } else if (product.handle) {
+        productUrl = `https://${process.env.NEXT_PUBLIC_SHOPIFY_STORE_DOMAIN}/products/${product.handle}`;
+      }
+
+      if (productUrl) {
+        const url = new URL(productUrl);
+        url.searchParams.set('utm_source', 'shoppable_video');
+        url.searchParams.set('utm_medium', 'video');
+        url.searchParams.set('utm_campaign', video.id);
+        url.searchParams.set('utm_content', product.id);
+        url.searchParams.set('ssvid', video.id); // shoppable video id
+        url.searchParams.set('ssvwr', viewerId); // viewer id
+
+        window.open(url.toString(), '_blank', 'noopener,noreferrer');
       }
     },
-    [addToCart]
+    [video.id, viewerId]
   );
 
   // Handle checkout
@@ -197,7 +228,7 @@ export function VideoModal({
                 </p>
               </div>
 
-              {/* Action button */}
+              {/* Action button - all products now go directly to checkout */}
               <button
                 onClick={() => handleProductAction(product)}
                 disabled={cartLoading}
@@ -205,10 +236,8 @@ export function VideoModal({
               >
                 {cartLoading ? (
                   <div className="w-5 h-5 border-2 border-white border-t-transparent rounded-full animate-spin" />
-                ) : product.source === 'manual' ? (
-                  'Buy Now'
                 ) : (
-                  'Add'
+                  'Buy Now'
                 )}
               </button>
             </div>

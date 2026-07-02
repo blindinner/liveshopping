@@ -299,6 +299,75 @@ export function useCart(options: UseCartOptions = {}) {
     }
   }, [cart.checkoutUrl, trackingContext, viewerId, total, itemCount]);
 
+  // Buy Now - creates cart with attribution and immediately redirects to checkout
+  // This provides a one-click checkout experience while maintaining attribution tracking
+  const buyNow = useCallback(async (product: Product, quantity: number = 1) => {
+    setIsLoading(true);
+    setError(null);
+
+    try {
+      // Create cart with product and attribution data
+      const response = await fetch('/api/cart/add', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          cartId: null, // Always create a new cart for buy now
+          variantId: product.shopify_variant_id,
+          quantity,
+          showId,
+          videoId,
+          viewerId,
+        }),
+      });
+
+      if (!response.ok) {
+        throw new Error('Failed to create cart');
+      }
+
+      const data = await response.json();
+
+      // Track add_to_cart event
+      trackEvent(trackingContext, viewerId, 'add_to_cart', product.id, {
+        quantity,
+        price: product.price,
+        value: product.price * quantity,
+        currency: product.currency,
+        product_title: product.title,
+      });
+
+      // Create cart session for attribution
+      if (data.cartId) {
+        createCartSession(trackingContext, viewerId, data.cartId, data.checkoutUrl);
+      }
+
+      // Track checkout_click event
+      trackEvent(trackingContext, viewerId, 'checkout_click', undefined, {
+        cart_total: product.price * quantity,
+        value: product.price * quantity,
+        item_count: quantity,
+        currency: product.currency,
+      });
+
+      // Open checkout immediately
+      if (data.checkoutUrl) {
+        const width = 450;
+        const height = 700;
+        const left = window.screenX + (window.outerWidth - width) / 2;
+        const top = window.screenY + (window.outerHeight - height) / 2;
+
+        window.open(
+          data.checkoutUrl,
+          'shopify-checkout',
+          `width=${width},height=${height},left=${left},top=${top},scrollbars=yes,resizable=yes`
+        );
+      }
+    } catch (err) {
+      setError(err instanceof Error ? err.message : 'Error processing purchase');
+    } finally {
+      setIsLoading(false);
+    }
+  }, [showId, videoId, viewerId, trackingContext]);
+
   return {
     cart,
     itemCount,
@@ -310,5 +379,6 @@ export function useCart(options: UseCartOptions = {}) {
     removeFromCart,
     clearCart,
     checkout,
+    buyNow,
   };
 }

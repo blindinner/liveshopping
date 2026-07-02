@@ -20,18 +20,8 @@ function ProductCard({
   locale: 'he' | 'en';
 }) {
   const isRTL = locale === 'he';
-  const isManualProduct = product.source === 'manual';
-
-  const t = {
-    he: {
-      buyNow: 'קנה עכשיו',
-      addToCart: 'הוסף לסל',
-    },
-    en: {
-      buyNow: 'Buy Now',
-      addToCart: 'Add to Cart',
-    },
-  }[locale];
+  // All products now go directly to checkout via buyNow
+  const buttonText = locale === 'he' ? 'קנה עכשיו' : 'Buy Now';
 
   const formatPrice = (price: number, currency: string) => {
     return new Intl.NumberFormat(locale === 'he' ? 'he-IL' : 'en-US', {
@@ -86,10 +76,8 @@ function ProductCard({
       >
         {isLoading ? (
           <div className="w-5 h-5 border-2 border-white border-t-transparent rounded-full animate-spin" />
-        ) : isManualProduct ? (
-          t.buyNow
         ) : (
-          t.addToCart
+          buttonText
         )}
       </button>
     </div>
@@ -108,7 +96,7 @@ export default function EmbedVideoPage({ params }: { params: Promise<{ videoId: 
   // Generate viewer ID for the session
   const [viewerId] = useState(() => `video-${Date.now()}-${Math.random().toString(36).slice(2)}`);
 
-  // Cart hook - includes checkout function that tracks checkout_click events
+  // Cart hook - for users who want to add multiple items before checkout
   const {
     cart,
     itemCount,
@@ -148,16 +136,47 @@ export default function EmbedVideoPage({ params }: { params: Promise<{ videoId: 
     loadVideo();
   }, [videoId, viewerId]);
 
-  // Handle product action
+  // Handle product action - track click and redirect to product page with attribution params
   const handleProductAction = useCallback(
     async (product: Product) => {
-      if (product.source === 'manual' && product.checkout_url) {
-        window.open(product.checkout_url, '_blank', 'noopener,noreferrer');
-      } else {
-        await addToCart(product);
+      // Track product click event
+      fetch(`/api/videos/${videoId}/events`, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          eventType: 'product_click',
+          viewerId,
+          productId: product.id,
+          metadata: {
+            product_title: product.title,
+            price: product.price,
+            currency: product.currency,
+          },
+        }),
+      }).catch(console.error);
+
+      // Build product URL with attribution params
+      // Shopify captures these in landing_site field on orders
+      let productUrl: string | null = null;
+      if (product.checkout_url) {
+        productUrl = product.checkout_url;
+      } else if (product.handle) {
+        productUrl = `https://${process.env.NEXT_PUBLIC_SHOPIFY_STORE_DOMAIN}/products/${product.handle}`;
+      }
+
+      if (productUrl) {
+        const url = new URL(productUrl);
+        url.searchParams.set('utm_source', 'shoppable_video');
+        url.searchParams.set('utm_medium', 'video');
+        url.searchParams.set('utm_campaign', videoId);
+        url.searchParams.set('utm_content', product.id);
+        url.searchParams.set('ssvid', videoId); // shoppable video id - easier to parse
+        url.searchParams.set('ssvwr', viewerId); // viewer id
+
+        window.open(url.toString(), '_blank', 'noopener,noreferrer');
       }
     },
-    [addToCart]
+    [videoId, viewerId]
   );
 
   // Handle checkout - use checkout from useCart to track the event

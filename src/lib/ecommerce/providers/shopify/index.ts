@@ -310,8 +310,11 @@ export class ShopifyProvider extends EcommerceProvider {
   }
 
   /**
-   * Extract live shopping attribution data from order note_attributes.
-   * Cart attributes set during checkout flow through to the order.
+   * Extract live shopping attribution data from order.
+   *
+   * For live shows: Uses note_attributes (cart attributes flow through to order)
+   * For shoppable videos: Falls back to parsing landing_site URL params
+   *
    * Supports both live shows (showId) and shoppable videos (videoId).
    */
   extractAttributionFromOrder(order: unknown): { showId?: string; videoId?: string; viewerId: string } | null {
@@ -326,6 +329,7 @@ export class ShopifyProvider extends EcommerceProvider {
     let videoId: string | null = null;
     let viewerId: string | null = null;
 
+    // First, try to extract from note_attributes (live shows use this)
     for (const attr of noteAttributes) {
       if (attr.name === '_live_shopping_show_id') {
         showId = attr.value;
@@ -338,13 +342,47 @@ export class ShopifyProvider extends EcommerceProvider {
       }
     }
 
-    // Must have viewerId and at least one of showId or videoId
+    // If found in note_attributes, return it
     if (viewerId && (showId || videoId)) {
       return {
         showId: showId || undefined,
         videoId: videoId || undefined,
         viewerId,
       };
+    }
+
+    // Fallback: Parse landing_site URL for shoppable video attribution
+    // Shoppable videos append params like ?ssvid=VIDEO_ID&ssvwr=VIEWER_ID
+    if (shopifyOrder.landing_site) {
+      try {
+        // landing_site is usually just the path with query string, e.g., "/products/item?ssvid=xxx"
+        const url = new URL(shopifyOrder.landing_site, 'https://placeholder.com');
+        const ssvid = url.searchParams.get('ssvid'); // shoppable video id
+        const ssvwr = url.searchParams.get('ssvwr'); // viewer id
+
+        // Also check utm_campaign as fallback for video id
+        const utmCampaign = url.searchParams.get('utm_campaign');
+        const utmSource = url.searchParams.get('utm_source');
+
+        if (ssvid && ssvwr) {
+          return {
+            videoId: ssvid,
+            viewerId: ssvwr,
+          };
+        }
+
+        // Fallback to utm_campaign if it looks like a video ID and source is shoppable_video
+        if (utmSource === 'shoppable_video' && utmCampaign) {
+          // Generate a viewer ID based on order info since we don't have the original
+          const generatedViewerId = `order-${shopifyOrder.id}`;
+          return {
+            videoId: utmCampaign,
+            viewerId: generatedViewerId,
+          };
+        }
+      } catch {
+        // Invalid URL, continue
+      }
     }
 
     return null;

@@ -24,6 +24,12 @@ export async function GET(request: Request) {
   let activeVideoElement = null;
   let globalMuted = true; // Shared mute state across all videos
 
+  // Generate viewer ID for tracking
+  const viewerId = 'carousel-' + Date.now() + '-' + Math.random().toString(36).slice(2);
+
+  // Get Shopify store domain from the page or use default
+  const shopifyDomain = window.Shopify?.shop || document.querySelector('meta[name="shopify-domain"]')?.content || '';
+
   const styles = document.createElement('style');
   styles.textContent = \`
     .sv-container {
@@ -231,7 +237,7 @@ export async function GET(request: Request) {
         </div>
       </div>
       \${product ? \`
-        <a href="\${product.handle ? '/products/' + product.handle : '#'}" class="sv-product-card" style="text-decoration: none; color: inherit;">
+        <div class="sv-product-card" data-product-id="\${product.id}" data-product-handle="\${product.handle || ''}" data-checkout-url="\${product.checkout_url || ''}" style="cursor: pointer;">
           <img src="\${product.image_url || ''}" alt="\${product.title}" class="sv-product-img">
           <div class="sv-product-info">
             <div class="sv-product-name">\${product.title}</div>
@@ -242,7 +248,7 @@ export async function GET(request: Request) {
               <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 5l7 7-7 7"/>
             </svg>
           </span>
-        </a>
+        </div>
       \` : ''}
     \`;
 
@@ -330,6 +336,59 @@ export async function GET(request: Request) {
       e.stopPropagation();
       toggleMute();
     });
+
+    // Product card click handler with attribution tracking
+    const productCard = item.querySelector('.sv-product-card');
+    if (productCard) {
+      productCard.addEventListener('click', (e) => {
+        e.preventDefault();
+
+        const productId = productCard.dataset.productId;
+        const productHandle = productCard.dataset.productHandle;
+        const checkoutUrl = productCard.dataset.checkoutUrl;
+        const videoId = video.id;
+
+        // Track product click event (fire and forget)
+        fetch(\`\${BASE_URL}/api/videos/\${videoId}/events\`, {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({
+            eventType: 'product_click',
+            viewerId: viewerId,
+            productId: productId,
+            metadata: {
+              product_title: product.title,
+              price: product.price,
+              currency: product.currency,
+              source: 'carousel_widget'
+            }
+          })
+        }).catch(console.error);
+
+        // Build product URL with attribution params
+        let productUrl;
+        if (checkoutUrl) {
+          productUrl = checkoutUrl;
+        } else if (productHandle && shopifyDomain) {
+          productUrl = 'https://' + shopifyDomain + '/products/' + productHandle;
+        } else if (productHandle) {
+          productUrl = '/products/' + productHandle;
+        }
+
+        if (productUrl) {
+          // Append attribution params
+          const url = new URL(productUrl, window.location.origin);
+          url.searchParams.set('utm_source', 'shoppable_video');
+          url.searchParams.set('utm_medium', 'video');
+          url.searchParams.set('utm_campaign', videoId);
+          url.searchParams.set('utm_content', productId);
+          url.searchParams.set('ssvid', videoId);
+          url.searchParams.set('ssvwr', viewerId);
+
+          window.open(url.toString(), '_blank');
+        }
+      });
+    }
 
     // Expose functions for external control
     item.startVideo = startVideo;

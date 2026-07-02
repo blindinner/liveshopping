@@ -2,7 +2,7 @@ import { NextRequest, NextResponse } from 'next/server';
 import { createClient } from '@/lib/supabase/server';
 
 // Event types for video analytics
-type VideoEventType = 'video_view' | 'add_to_cart' | 'checkout_click' | 'order_completed';
+type VideoEventType = 'video_view' | 'product_click' | 'add_to_cart' | 'checkout_click' | 'order_completed';
 
 // POST /api/videos/[videoId]/events - Record a viewer event for a video
 export async function POST(
