@@ -143,11 +143,8 @@ export function Header() {
             </div>
           </div>
 
-          {/* Desktop CTAs */}
-          <div className="hidden md:flex items-center gap-4">
-            <Link href="/login" className="text-sm text-gray-600 hover:text-gray-900 transition-colors font-medium px-4 py-2">
-              Log in
-            </Link>
+          {/* Desktop CTA */}
+          <div className="hidden md:flex items-center">
             <a
               href="/#demo"
               className="inline-flex items-center gap-2 bg-pink-500 text-white px-5 py-2.5 rounded-full text-sm font-semibold hover:bg-pink-600 transition-colors shadow-lg shadow-pink-500/20"
@@ -230,17 +227,10 @@ export function Header() {
 
               <div className="my-4 border-t border-gray-100" />
 
-              <Link
-                href="/login"
-                onClick={() => setMobileMenuOpen(false)}
-                className="text-gray-700 hover:text-gray-900 py-3 px-4 font-medium"
-              >
-                Log in
-              </Link>
               <a
                 href="/#demo"
                 onClick={() => setMobileMenuOpen(false)}
-                className="mt-2 mx-4 flex items-center justify-center gap-2 bg-pink-500 text-white px-5 py-3 rounded-full text-sm font-semibold"
+                className="mx-4 flex items-center justify-center gap-2 bg-pink-500 text-white px-5 py-3 rounded-full text-sm font-semibold"
               >
                 Book a Demo
               </a>

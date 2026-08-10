@@ -10,7 +10,6 @@ import {
   Benefits,
   Results,
   Features,
-  UseCases,
   HowItWorks,
   Integrations,
   FAQ,
@@ -217,7 +216,6 @@ export default function HomePage() {
         <Benefits />
         <Results />
         <Features />
-        <UseCases />
         <HowItWorks />
         <Integrations />
         <FAQ />

@@ -6,29 +6,12 @@ export function Features() {
       description: 'Go live from your browser or phone. Feature products in real-time and let viewers checkout with one tap—without leaving the stream.',
       highlights: ['Browser & mobile streaming', 'Real-time product featuring', 'Live chat & reactions', 'Instant checkout'],
       visual: (
-        <div className="relative h-64 bg-gradient-to-br from-pink-50 to-white rounded-xl overflow-hidden">
-          {/* Mock live stream UI */}
-          <div className="absolute inset-4 bg-gray-200 rounded-lg overflow-hidden">
-            <div className="absolute top-2 left-2 flex items-center gap-1.5 bg-red-500 text-white text-xs font-bold px-2 py-1 rounded-full">
-              <span className="w-1.5 h-1.5 bg-white rounded-full animate-pulse" />
-              LIVE
-            </div>
-            <div className="absolute top-2 right-2 bg-black/50 text-white text-xs px-2 py-1 rounded-full">
-              1.2k
-            </div>
-          </div>
-          <div className="absolute bottom-4 left-4 right-4 bg-white rounded-xl p-3 shadow-lg border border-gray-100">
-            <div className="flex items-center gap-3">
-              <div className="w-12 h-12 bg-gray-100 rounded-lg" />
-              <div className="flex-1">
-                <div className="text-sm font-medium text-gray-900">Summer Dress</div>
-                <div className="text-sm text-pink-500 font-semibold">$49.00</div>
-              </div>
-              <button className="bg-pink-500 text-white text-xs font-semibold px-4 py-2 rounded-full">
-                Add to Cart
-              </button>
-            </div>
-          </div>
+        <div className="relative h-64 rounded-xl overflow-hidden">
+          <img
+            src="/features-live-shopping.png"
+            alt="Live Shopping demo showing a host presenting a product with real-time checkout"
+            className="w-full h-full object-cover object-top rounded-xl"
+          />
         </div>
       ),
     },
@@ -38,29 +21,12 @@ export function Features() {
       description: 'Tag products at specific moments in your videos. Viewers click to buy exactly when they see something they want.',
       highlights: ['Timestamp product tagging', 'Automatic VOD processing', 'Embed anywhere', 'Analytics per video'],
       visual: (
-        <div className="relative h-64 bg-gradient-to-br from-pink-50 to-white rounded-xl overflow-hidden p-4">
-          {/* Mock video with product tags */}
-          <div className="flex gap-3 h-full">
-            <div className="w-1/2 bg-gray-200 rounded-lg relative">
-              <div className="absolute bottom-2 left-2 bg-black/60 text-white text-xs px-2 py-1 rounded">04:37</div>
-              <div className="absolute bottom-12 right-2 bg-pink-500 text-white text-xs font-bold px-2 py-1 rounded-lg flex items-center gap-1">
-                <svg className="w-3 h-3" fill="currentColor" viewBox="0 0 20 20">
-                  <path d="M10 12a2 2 0 100-4 2 2 0 000 4z" />
-                </svg>
-                AI
-              </div>
-            </div>
-            <div className="w-1/2 flex flex-col gap-2">
-              <div className="flex-1 bg-gray-100 rounded-lg relative border-2 border-pink-300 p-2">
-                <div className="absolute -top-1 -right-1 bg-pink-500 text-white text-[10px] px-1.5 py-0.5 rounded">16s</div>
-                <div className="w-full h-full bg-gray-200 rounded" />
-              </div>
-              <div className="flex-1 bg-gray-100 rounded-lg relative border-2 border-pink-300 p-2">
-                <div className="absolute -top-1 -right-1 bg-pink-500 text-white text-[10px] px-1.5 py-0.5 rounded">23s</div>
-                <div className="w-full h-full bg-gray-200 rounded" />
-              </div>
-            </div>
-          </div>
+        <div className="relative h-64 rounded-xl overflow-hidden">
+          <img
+            src="/features-shoppable-videos.png"
+            alt="Shoppable video demo showing product tagging at specific timestamps"
+            className="w-full h-full object-cover object-center rounded-xl"
+          />
         </div>
       ),
     },

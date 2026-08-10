@@ -1,6 +1,5 @@
 'use client';
 
-import Link from 'next/link';
 import { motion, useInView } from 'framer-motion';
 import { useRef } from 'react';
 import { CountUp } from '@/components/animation';
@@ -98,7 +97,7 @@ export function Hero() {
           {/* CTAs */}
           <motion.div
             variants={fadeUp}
-            className="flex flex-col sm:flex-row items-center justify-center gap-4 mb-16"
+            className="flex items-center justify-center mb-16"
           >
             <motion.a
               href="#demo"
@@ -112,15 +111,6 @@ export function Hero() {
                 <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M17 8l4 4m0 0l-4 4m4-4H3" />
               </svg>
             </motion.a>
-            <Link
-              href="/shows"
-              className="inline-flex items-center gap-2 text-white/80 hover:text-white px-8 py-4 rounded-full text-base font-medium transition-colors"
-            >
-              See it Live
-              <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M14 5l7 7m0 0l-7 7m7-7H3" />
-              </svg>
-            </Link>
           </motion.div>
         </motion.div>
       </div>
