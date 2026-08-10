@@ -130,8 +130,40 @@ export default function LiveViewerPage() {
     );
   }
 
-  // Ended state
+  // Ended state - show replay if available
   if (show.status === 'ended') {
+    // If we have a playback ID, show the replay
+    if (show.cloudflare_playback_id) {
+      return (
+        <div className="fixed inset-0 bg-black">
+          {/* Video Player - plays the recording */}
+          <VideoPlayer
+            playbackId={show.cloudflare_playback_id}
+            isLive={false}
+            viewerCount={0}
+            locale={locale}
+          />
+
+          {/* Replay badge */}
+          <div className="absolute top-4 left-4 z-20">
+            <div className="px-3 py-1.5 bg-white/10 backdrop-blur-sm rounded-full flex items-center gap-2">
+              <svg className="w-4 h-4 text-white/70" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M4 4v5h.582m15.356 2A8.001 8.001 0 004.582 9m0 0H9m11 11v-5h-.581m0 0a8.003 8.003 0 01-15.357-2m15.357 2H15" />
+              </svg>
+              <span className="text-white/70 text-sm font-medium">Replay</span>
+            </div>
+          </div>
+
+          {/* Show title overlay */}
+          <div className="absolute bottom-0 left-0 right-0 p-4 bg-gradient-to-t from-black/80 to-transparent z-10">
+            <h1 className="text-lg font-bold text-white">{show.title}</h1>
+            <p className="text-white/60 text-sm">Recorded show</p>
+          </div>
+        </div>
+      );
+    }
+
+    // No recording available
     return (
       <div className="fixed inset-0 bg-gradient-to-b from-gray-900 to-black flex flex-col items-center justify-center p-6">
         <svg

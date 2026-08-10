@@ -21,9 +21,6 @@ export function Footer() {
             <a href="#faq" className="text-gray-500 hover:text-gray-900 transition-colors text-sm font-medium">
               FAQ
             </a>
-            <Link href="/login" className="text-gray-500 hover:text-gray-900 transition-colors text-sm font-medium">
-              Log in
-            </Link>
           </div>
 
           {/* Copyright */}

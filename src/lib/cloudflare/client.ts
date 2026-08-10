@@ -2,6 +2,8 @@
 
 const CLOUDFLARE_ACCOUNT_ID = process.env.CLOUDFLARE_ACCOUNT_ID!;
 const CLOUDFLARE_API_TOKEN = process.env.CLOUDFLARE_API_TOKEN!;
+// Customer subdomain for playback/thumbnail URLs (different from API account ID)
+const CLOUDFLARE_CUSTOMER_SUBDOMAIN = process.env.NEXT_PUBLIC_CLOUDFLARE_ACCOUNT_ID || 'f83anpt0jiknxr1e';
 const API_BASE = `https://api.cloudflare.com/client/v4/accounts/${CLOUDFLARE_ACCOUNT_ID}/stream`;
 
 interface CloudflareLiveInput {
@@ -123,12 +125,12 @@ export async function deleteLiveInput(uid: string): Promise<void> {
 
 // Get the playback URL for a live input
 export function getPlaybackUrl(uid: string): string {
-  return `https://customer-${CLOUDFLARE_ACCOUNT_ID}.cloudflarestream.com/${uid}/iframe`;
+  return `https://customer-${CLOUDFLARE_CUSTOMER_SUBDOMAIN}.cloudflarestream.com/${uid}/iframe`;
 }
 
 // Get HLS playback URL
 export function getHlsPlaybackUrl(uid: string): string {
-  return `https://customer-${CLOUDFLARE_ACCOUNT_ID}.cloudflarestream.com/${uid}/manifest/video.m3u8`;
+  return `https://customer-${CLOUDFLARE_CUSTOMER_SUBDOMAIN}.cloudflarestream.com/${uid}/manifest/video.m3u8`;
 }
 
 // ============================================
@@ -253,9 +255,8 @@ export function getThumbnailUrl(uid: string, options?: {
   width?: number;
   height?: number;
 }): string {
-  const { time = '1s', width, height } = options || {};
-  let url = `https://customer-${CLOUDFLARE_ACCOUNT_ID}.cloudflarestream.com/${uid}/thumbnails/thumbnail.jpg?time=${time}`;
-  if (width) url += `&width=${width}`;
+  const { time = '1s', width = 640, height } = options || {};
+  let url = `https://customer-${CLOUDFLARE_CUSTOMER_SUBDOMAIN}.cloudflarestream.com/${uid}/thumbnails/thumbnail.jpg?time=${time}&width=${width}`;
   if (height) url += `&height=${height}`;
   return url;
 }

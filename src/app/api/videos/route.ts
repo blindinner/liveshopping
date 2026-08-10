@@ -29,7 +29,60 @@ export async function GET(request: Request) {
       throw error;
     }
 
-    return NextResponse.json({ videos });
+    // Fetch analytics for all videos
+    const videoIds = videos?.map(v => v.id) || [];
+
+    let analyticsMap: Record<string, {
+      views: number;
+      uniqueViewers: number;
+      productClicks: number;
+      addToCarts: number;
+      orders: number;
+      revenue: number;
+    }> = {};
+
+    if (videoIds.length > 0) {
+      const { data: videoEvents } = await supabase
+        .from('video_events')
+        .select('video_id, event_type, viewer_id, metadata')
+        .in('video_id', videoIds);
+
+      // Aggregate analytics per video
+      for (const videoId of videoIds) {
+        const events = (videoEvents || []).filter(e => e.video_id === videoId);
+
+        const views = events.filter(e => e.event_type === 'video_view').length;
+        const uniqueViewers = new Set(
+          events.filter(e => e.event_type === 'video_view').map(e => e.viewer_id)
+        ).size;
+        const productClicks = events.filter(e => e.event_type === 'product_click').length;
+        const addToCarts = events.filter(e => e.event_type === 'add_to_cart').length;
+        const orders = events.filter(e => e.event_type === 'order_completed').length;
+        const revenue = events
+          .filter(e => e.event_type === 'order_completed')
+          .reduce((sum, e) => {
+            const orderTotal = (e.metadata as Record<string, unknown>)?.order_total;
+            return sum + (typeof orderTotal === 'number' ? orderTotal : 0);
+          }, 0);
+
+        analyticsMap[videoId] = { views, uniqueViewers, productClicks, addToCarts, orders, revenue };
+      }
+    }
+
+    // Attach analytics to each video
+    const videosWithAnalytics = videos?.map(video => ({
+      ...video,
+      analytics: analyticsMap[video.id] || {
+        views: 0,
+        uniqueViewers: 0,
+        productClicks: 0,
+        addToCarts: 0,
+        orders: 0,
+        revenue: 0,
+      },
+    }));
+
+    return NextResponse.json({ videos: videosWithAnalytics });
   } catch (error) {
     console.error('Get videos error:', error);
     return NextResponse.json(
@@ -54,7 +107,8 @@ export async function POST(request: Request) {
       title,
       description,
       productId,
-      cloudflareStreamId
+      cloudflareStreamId,
+      isPublished
     } = await request.json();
 
     if (!brandId || !title || !cloudflareStreamId) {
@@ -74,6 +128,7 @@ export async function POST(request: Request) {
         cloudflare_stream_id: cloudflareStreamId,
         cloudflare_playback_id: cloudflareStreamId, // Same as stream ID in Cloudflare
         status: 'processing',
+        is_published: isPublished || false,
       })
       .select('*, product:products(*)')
       .single();

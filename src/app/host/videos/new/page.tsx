@@ -27,6 +27,7 @@ export default function NewVideoPage() {
   const [uploadProgress, setUploadProgress] = useState(0);
   const [isUploading, setIsUploading] = useState(false);
   const [cloudflareStreamId, setCloudflareStreamId] = useState<string | null>(null);
+  const [localVideoUrl, setLocalVideoUrl] = useState<string | null>(null);
   const fileInputRef = useRef<HTMLInputElement>(null);
 
   // Product search
@@ -35,6 +36,8 @@ export default function NewVideoPage() {
   const [productSearch, setProductSearch] = useState('');
 
   const [isCreating, setIsCreating] = useState(false);
+  const [publishImmediately, setPublishImmediately] = useState(true);
+  const [isComplete, setIsComplete] = useState(false);
   const router = useRouter();
 
   useEffect(() => {
@@ -62,6 +65,15 @@ export default function NewVideoPage() {
     loadProducts();
   }, []);
 
+  // Clean up blob URL on unmount
+  useEffect(() => {
+    return () => {
+      if (localVideoUrl) {
+        URL.revokeObjectURL(localVideoUrl);
+      }
+    };
+  }, [localVideoUrl]);
+
   const handleFileSelect = async (e: React.ChangeEvent<HTMLInputElement>) => {
     const file = e.target.files?.[0];
     if (!file) return;
@@ -71,6 +83,15 @@ export default function NewVideoPage() {
       alert('Please select a video file');
       return;
     }
+
+    // Clean up previous blob URL if exists
+    if (localVideoUrl) {
+      URL.revokeObjectURL(localVideoUrl);
+    }
+
+    // Create local preview immediately
+    const blobUrl = URL.createObjectURL(file);
+    setLocalVideoUrl(blobUrl);
 
     setIsUploading(true);
     setUploadProgress(0);
@@ -98,6 +119,10 @@ export default function NewVideoPage() {
       console.error('Upload failed:', error);
       alert('Upload failed. Please try again.');
       setUploadProgress(0);
+      setCloudflareStreamId(null);
+      // Clean up on error
+      URL.revokeObjectURL(blobUrl);
+      setLocalVideoUrl(null);
     } finally {
       setIsUploading(false);
     }
@@ -140,6 +165,7 @@ export default function NewVideoPage() {
     setIsCreating(true);
 
     try {
+      // Create the video
       const response = await fetch('/api/videos', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
@@ -147,17 +173,32 @@ export default function NewVideoPage() {
           brandId,
           title,
           description: description || null,
-          productId: selectedProduct?.id || null,
           cloudflareStreamId,
+          isPublished: publishImmediately,
         }),
       });
 
-      if (response.ok) {
-        const { video } = await response.json();
-        router.push(`/host/videos/${video.id}/edit`);
-      } else {
+      if (!response.ok) {
         throw new Error('Failed to create video');
       }
+
+      const { video } = await response.json();
+
+      // If a product was selected, add it to the video_products table
+      if (selectedProduct?.id) {
+        await fetch(`/api/videos/${video.id}/products`, {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({
+            productId: selectedProduct.id,
+            startTimeSeconds: 0,
+            endTimeSeconds: null,
+            displayOrder: 0,
+          }),
+        });
+      }
+
+      setIsComplete(true);
     } catch (error) {
       console.error('Failed to create video:', error);
       alert('Failed to create video. Please try again.');
@@ -198,24 +239,82 @@ export default function NewVideoPage() {
     }
   };
 
+  // Success state - video created
+  if (isComplete) {
+    return (
+      <div className="p-4 md:p-6">
+        <div className="max-w-lg mx-auto mt-12">
+          <div className="bg-white/5 rounded-2xl p-8 text-center">
+            <div className="w-16 h-16 mx-auto rounded-full bg-green-500/20 flex items-center justify-center mb-6">
+              <svg className="w-8 h-8 text-green-400" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M5 13l4 4L19 7" />
+              </svg>
+            </div>
+            <h2 className="text-2xl font-bold text-white mb-2">Video Created!</h2>
+            <p className="text-white/60 mb-6">
+              Your video is now processing. {publishImmediately
+                ? 'It will automatically appear in your widgets once ready.'
+                : 'You can publish it from the videos page once processing is complete.'}
+            </p>
+            <div className="flex items-center justify-center gap-2 text-white/50 text-sm mb-8">
+              <svg className="w-4 h-4 animate-spin" fill="none" viewBox="0 0 24 24">
+                <circle className="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" strokeWidth="4" />
+                <path className="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 014 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z" />
+              </svg>
+              <span>Processing video...</span>
+            </div>
+            <div className="flex gap-3 justify-center">
+              <Link
+                href="/host/videos"
+                className="px-6 py-2 bg-pink-500 hover:bg-pink-600 text-white font-medium rounded-lg transition-colors"
+              >
+                View All Videos
+              </Link>
+              <button
+                onClick={() => {
+                  if (localVideoUrl) {
+                    URL.revokeObjectURL(localVideoUrl);
+                  }
+                  setIsComplete(false);
+                  setCloudflareStreamId(null);
+                  setLocalVideoUrl(null);
+                  setTitle('');
+                  setDescription('');
+                  setSelectedProduct(null);
+                  setUploadProgress(0);
+                }}
+                className="px-6 py-2 bg-white/10 hover:bg-white/20 text-white font-medium rounded-lg transition-colors"
+              >
+                Upload Another
+              </button>
+            </div>
+          </div>
+        </div>
+      </div>
+    );
+  }
+
   return (
-    <main className="min-h-screen bg-gradient-to-b from-gray-900 to-black">
-      {/* Header */}
-      <header className="p-4 flex items-center gap-4 border-b border-white/10">
-        <Link href="/host/videos" className="text-white/60 hover:text-white">
+    <div className="p-4 md:p-6">
+      {/* Page Header */}
+      <div className="flex items-center gap-3 mb-6">
+        <Link href="/host/videos" className="text-white/60 hover:text-white p-1 -ml-1">
           <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
             <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M15 19l-7-7 7-7" />
           </svg>
         </Link>
-        <h1 className="text-xl font-bold text-white">Upload Video</h1>
-      </header>
+        <div>
+          <h1 className="text-2xl font-bold text-white">Upload Video</h1>
+          <p className="text-white/60 text-sm mt-0.5">Add a new shoppable video</p>
+        </div>
+      </div>
 
-      <form onSubmit={handleSubmit} className="p-4 max-w-2xl mx-auto space-y-6">
+      <form onSubmit={handleSubmit} className="max-w-2xl space-y-6">
         {/* Video Upload */}
         <section className="bg-white/5 rounded-2xl p-4">
           <h2 className="text-base font-semibold text-white mb-4">Video File</h2>
 
-          {!cloudflareStreamId ? (
+          {!localVideoUrl ? (
             <div
               onClick={() => fileInputRef.current?.click()}
               className={`
@@ -264,16 +363,34 @@ export default function NewVideoPage() {
               )}
             </div>
           ) : (
-            <div className="flex items-center gap-3 p-3 bg-green-500/10 border border-green-500/30 rounded-xl">
-              <div className="w-10 h-10 rounded-full bg-green-500/20 flex items-center justify-center">
-                <svg className="w-5 h-5 text-green-400" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M5 13l4 4L19 7" />
-                </svg>
+            <div className="space-y-3">
+              {/* Video Preview - using local file for instant playback */}
+              <div className="aspect-video bg-black rounded-xl overflow-hidden relative">
+                <video
+                  src={localVideoUrl || undefined}
+                  controls
+                  className="absolute inset-0 w-full h-full object-contain"
+                  playsInline
+                />
               </div>
-              <div>
-                <p className="text-white font-medium">Video uploaded</p>
-                <p className="text-white/50 text-sm">Processing will begin after you save</p>
-              </div>
+              {/* Change video button */}
+              <button
+                type="button"
+                onClick={() => {
+                  if (localVideoUrl) {
+                    URL.revokeObjectURL(localVideoUrl);
+                  }
+                  setLocalVideoUrl(null);
+                  setCloudflareStreamId(null);
+                  setUploadProgress(0);
+                  if (fileInputRef.current) {
+                    fileInputRef.current.value = '';
+                  }
+                }}
+                className="text-sm text-white/60 hover:text-white transition-colors"
+              >
+                Change video
+              </button>
             </div>
           )}
         </section>
@@ -391,6 +508,56 @@ export default function NewVideoPage() {
           )}
         </section>
 
+        {/* Publish Toggle */}
+        <section
+          className={`rounded-2xl p-4 border-2 transition-colors cursor-pointer ${
+            publishImmediately
+              ? 'bg-green-500/10 border-green-500/30'
+              : 'bg-white/5 border-white/10'
+          }`}
+          onClick={() => setPublishImmediately(!publishImmediately)}
+        >
+          <div className="flex items-center justify-between">
+            <div className="flex items-center gap-3">
+              {publishImmediately ? (
+                <div className="w-10 h-10 rounded-full bg-green-500/20 flex items-center justify-center">
+                  <svg className="w-5 h-5 text-green-400" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M5 13l4 4L19 7" />
+                  </svg>
+                </div>
+              ) : (
+                <div className="w-10 h-10 rounded-full bg-white/10 flex items-center justify-center">
+                  <svg className="w-5 h-5 text-white/40" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M15 12a3 3 0 11-6 0 3 3 0 016 0z" />
+                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M2.458 12C3.732 7.943 7.523 5 12 5c4.478 0 8.268 2.943 9.542 7-1.274 4.057-5.064 7-9.542 7-4.477 0-8.268-2.943-9.542-7z" />
+                  </svg>
+                </div>
+              )}
+              <div>
+                <p className={`font-semibold ${publishImmediately ? 'text-green-400' : 'text-white'}`}>
+                  {publishImmediately ? 'Publish to Widgets' : 'Save as Draft'}
+                </p>
+                <p className="text-white/60 text-sm mt-0.5">
+                  {publishImmediately
+                    ? 'Video will appear in your carousel & floating widgets when ready'
+                    : 'Video will be saved but not visible in widgets'}
+                </p>
+              </div>
+            </div>
+            <div
+              className={`relative w-12 h-7 rounded-full transition-colors ${
+                publishImmediately ? 'bg-green-500' : 'bg-white/20'
+              }`}
+            >
+              <div
+                className={`absolute top-1 w-5 h-5 rounded-full bg-white shadow transition-transform ${
+                  publishImmediately ? 'translate-x-6' : 'translate-x-1'
+                }`}
+              />
+            </div>
+          </div>
+        </section>
+
         {/* Submit */}
         <Button
           type="submit"
@@ -398,9 +565,9 @@ export default function NewVideoPage() {
           disabled={!title || !cloudflareStreamId || !brandId}
           className="w-full"
         >
-          Create Video
+          {publishImmediately ? 'Create & Publish Video' : 'Create Video'}
         </Button>
       </form>
-    </main>
+    </div>
   );
 }

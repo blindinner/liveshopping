@@ -22,8 +22,6 @@ export default function EditVideoPage({ params }: { params: Promise<{ videoId: s
   const [isSaving, setIsSaving] = useState(false);
   const [isCheckingStatus, setIsCheckingStatus] = useState(false);
   const [isPublishing, setIsPublishing] = useState(false);
-  const [copied, setCopied] = useState(false);
-  const [embedType, setEmbedType] = useState<'floating' | 'inline' | 'pdp'>('floating');
 
   const router = useRouter();
 
@@ -132,75 +130,6 @@ export default function EditVideoPage({ params }: { params: Promise<{ videoId: s
     }
   }, [video?.status, checkStatus]);
 
-  const getEmbedCode = () => {
-    const baseUrl = typeof window !== 'undefined' ? window.location.origin : '';
-
-    switch (embedType) {
-      case 'floating':
-        return `<script
-  src="${baseUrl}/widgets/floating.js"
-  data-brand-id="${brandId}"
-  data-position="bottom-right"
-></script>`;
-      case 'pdp':
-        return `<script
-  src="${baseUrl}/widgets/pdp.js"
-  data-video-id="${videoId}"
-  data-autoplay="true"
-  data-max-width="400px"
-></script>`;
-      case 'inline':
-      default:
-        return `<iframe
-  src="${baseUrl}/embed/video/${videoId}"
-  width="400"
-  height="712"
-  frameborder="0"
-  allow="autoplay; fullscreen"
-  style="border-radius: 12px;"
-></iframe>`;
-    }
-  };
-
-  const embedOptions = [
-    {
-      type: 'floating' as const,
-      label: 'Floating Bubble',
-      description: 'Floats in corner, expands on click. Shows all your videos.',
-      icon: (
-        <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-          <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={1.5} d="M8 12h.01M12 12h.01M16 12h.01M21 12c0 4.418-4.03 8-9 8a9.863 9.863 0 01-4.255-.949L3 20l1.395-3.72C3.512 15.042 3 13.574 3 12c0-4.418 4.03-8 9-8s9 3.582 9 8z" />
-        </svg>
-      ),
-    },
-    {
-      type: 'pdp' as const,
-      label: 'Single Video',
-      description: 'Embeds this specific video inline on the page.',
-      icon: (
-        <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-          <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={1.5} d="M15 10l4.553-2.276A1 1 0 0121 8.618v6.764a1 1 0 01-1.447.894L15 14M5 18h8a2 2 0 002-2V8a2 2 0 00-2-2H5a2 2 0 00-2 2v8a2 2 0 002 2z" />
-        </svg>
-      ),
-    },
-    {
-      type: 'inline' as const,
-      label: 'Iframe',
-      description: 'Raw iframe embed. Place exactly where needed.',
-      icon: (
-        <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-          <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={1.5} d="M10 20l4-16m4 4l4 4-4 4M6 16l-4-4 4-4" />
-        </svg>
-      ),
-    },
-  ];
-
-  const copyEmbedCode = () => {
-    navigator.clipboard.writeText(getEmbedCode());
-    setCopied(true);
-    setTimeout(() => setCopied(false), 2000);
-  };
-
   const getStatusBadge = (status: string) => {
     switch (status) {
       case 'ready':
@@ -216,33 +145,38 @@ export default function EditVideoPage({ params }: { params: Promise<{ videoId: s
 
   if (isLoading) {
     return (
-      <main className="min-h-screen bg-gradient-to-b from-gray-900 to-black flex items-center justify-center">
+      <div className="flex items-center justify-center min-h-[50vh]">
         <div className="animate-spin w-8 h-8 border-2 border-white border-t-transparent rounded-full" />
-      </main>
+      </div>
     );
   }
 
   if (!video) return null;
 
   return (
-    <main className="min-h-screen bg-gradient-to-b from-gray-900 to-black">
-      {/* Header */}
-      <header className="p-4 flex items-center justify-between border-b border-white/10">
-        <div className="flex items-center gap-4">
-          <Link href="/host/videos" className="text-white/60 hover:text-white">
+    <div className="p-4 md:p-6">
+      {/* Page Header */}
+      <div className="flex items-center justify-between mb-6">
+        <div className="flex items-center gap-3">
+          <Link href="/host/videos" className="text-white/60 hover:text-white p-1 -ml-1">
             <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
               <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M15 19l-7-7 7-7" />
             </svg>
           </Link>
-          <h1 className="text-xl font-bold text-white">Edit Video</h1>
-          {getStatusBadge(video.status)}
+          <div>
+            <div className="flex items-center gap-2">
+              <h1 className="text-2xl font-bold text-white">Edit Video</h1>
+              {getStatusBadge(video.status)}
+            </div>
+            <p className="text-white/60 text-sm mt-0.5">{video.title}</p>
+          </div>
         </div>
         <Button onClick={handleSave} isLoading={isSaving} disabled={!title}>
           Save Changes
         </Button>
-      </header>
+      </div>
 
-      <div className="p-4 max-w-4xl mx-auto">
+      <div className="max-w-4xl">
         <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
           {/* Video Preview */}
           <section className="bg-white/5 rounded-2xl overflow-hidden">
@@ -296,6 +230,76 @@ export default function EditVideoPage({ params }: { params: Promise<{ videoId: s
 
           {/* Edit Form */}
           <div className="space-y-6">
+            {/* Publishing Status - Prominent Section */}
+            {video.status === 'ready' && (
+              <section
+                className={`rounded-2xl p-4 border-2 transition-colors ${
+                  video.is_published
+                    ? 'bg-green-500/10 border-green-500/30'
+                    : 'bg-yellow-500/10 border-yellow-500/30'
+                }`}
+              >
+                <div className="flex items-center justify-between">
+                  <div className="flex items-center gap-3">
+                    {video.is_published ? (
+                      <div className="w-10 h-10 rounded-full bg-green-500/20 flex items-center justify-center">
+                        <svg className="w-5 h-5 text-green-400" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                          <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M5 13l4 4L19 7" />
+                        </svg>
+                      </div>
+                    ) : (
+                      <div className="w-10 h-10 rounded-full bg-yellow-500/20 flex items-center justify-center">
+                        <svg className="w-5 h-5 text-yellow-400" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                          <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M15 12a3 3 0 11-6 0 3 3 0 016 0z" />
+                          <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M2.458 12C3.732 7.943 7.523 5 12 5c4.478 0 8.268 2.943 9.542 7-1.274 4.057-5.064 7-9.542 7-4.477 0-8.268-2.943-9.542-7z" />
+                        </svg>
+                      </div>
+                    )}
+                    <div>
+                      <div className="flex items-center gap-2">
+                        <p className={`font-semibold ${video.is_published ? 'text-green-400' : 'text-yellow-400'}`}>
+                          {video.is_published ? 'Published' : 'Not Published'}
+                        </p>
+                        {video.is_published && (
+                          <span className="px-2 py-0.5 bg-green-500/20 text-green-400 text-xs rounded-full">
+                            Live
+                          </span>
+                        )}
+                      </div>
+                      <p className="text-white/60 text-sm mt-0.5">
+                        {video.is_published
+                          ? 'Visible in your carousel and floating widgets'
+                          : 'Publish to make visible in your widgets'}
+                      </p>
+                    </div>
+                  </div>
+                  <button
+                    onClick={togglePublish}
+                    disabled={isPublishing}
+                    className={`px-4 py-2 rounded-lg font-medium text-sm transition-all ${
+                      video.is_published
+                        ? 'bg-white/10 text-white hover:bg-white/20'
+                        : 'bg-green-500 text-white hover:bg-green-600'
+                    } ${isPublishing ? 'opacity-50 cursor-not-allowed' : ''}`}
+                  >
+                    {isPublishing ? (
+                      <span className="flex items-center gap-2">
+                        <svg className="w-4 h-4 animate-spin" fill="none" viewBox="0 0 24 24">
+                          <circle className="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" strokeWidth="4" />
+                          <path className="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4z" />
+                        </svg>
+                        Updating...
+                      </span>
+                    ) : video.is_published ? (
+                      'Unpublish'
+                    ) : (
+                      'Publish Now'
+                    )}
+                  </button>
+                </div>
+              </section>
+            )}
+
             {/* Video Details */}
             <section className="bg-white/5 rounded-2xl p-4 space-y-4">
               <h2 className="text-base font-semibold text-white">Video Details</h2>
@@ -318,29 +322,6 @@ export default function EditVideoPage({ params }: { params: Promise<{ videoId: s
                   className="w-full bg-black/30 text-white text-sm rounded-xl px-4 py-3 resize-none focus:outline-none focus:ring-2 focus:ring-pink-500/50 placeholder:text-white/30 border border-white/10"
                 />
               </div>
-
-              {/* Publish Toggle */}
-              {video.status === 'ready' && (
-                <div className="flex items-center justify-between pt-2 border-t border-white/10">
-                  <div>
-                    <p className="text-white font-medium text-sm">Publish to Widget</p>
-                    <p className="text-white/50 text-xs mt-0.5">Make this video visible in embedded widgets</p>
-                  </div>
-                  <button
-                    onClick={togglePublish}
-                    disabled={isPublishing}
-                    className={`relative w-12 h-6 rounded-full transition-colors ${
-                      video.is_published ? 'bg-green-500' : 'bg-white/20'
-                    } ${isPublishing ? 'opacity-50' : ''}`}
-                  >
-                    <span
-                      className={`absolute top-1 w-4 h-4 bg-white rounded-full transition-transform ${
-                        video.is_published ? 'left-7' : 'left-1'
-                      }`}
-                    />
-                  </button>
-                </div>
-              )}
             </section>
 
             {/* Products Timeline */}
@@ -350,80 +331,6 @@ export default function EditVideoPage({ params }: { params: Promise<{ videoId: s
                 brandId={brandId}
                 videoDuration={video.duration_seconds}
               />
-            )}
-
-            {/* Embed Code */}
-            {video.status === 'ready' && (
-              <section className="bg-white/5 rounded-2xl p-4">
-                <h2 className="text-base font-semibold text-white mb-4">Embed Code</h2>
-
-                {/* Embed Type Selector */}
-                <div className="grid grid-cols-3 gap-2 mb-4">
-                  {embedOptions.map((option) => (
-                    <button
-                      key={option.type}
-                      onClick={() => setEmbedType(option.type)}
-                      className={`p-3 rounded-xl border transition-all text-left ${
-                        embedType === option.type
-                          ? 'bg-pink-500/20 border-pink-500/50'
-                          : 'bg-black/20 border-white/10 hover:bg-white/5'
-                      }`}
-                    >
-                      <div className={`mb-1.5 ${embedType === option.type ? 'text-pink-400' : 'text-white/50'}`}>
-                        {option.icon}
-                      </div>
-                      <p className={`text-xs font-medium ${embedType === option.type ? 'text-white' : 'text-white/70'}`}>
-                        {option.label}
-                      </p>
-                    </button>
-                  ))}
-                </div>
-
-                {/* Description */}
-                <p className="text-white/50 text-sm mb-4">
-                  {embedOptions.find(o => o.type === embedType)?.description}
-                </p>
-
-                {/* Code Block */}
-                <div className="relative">
-                  <pre className="bg-black/30 rounded-xl p-4 text-sm text-white/70 overflow-x-auto border border-white/10 whitespace-pre-wrap">
-                    {getEmbedCode()}
-                  </pre>
-                  <button
-                    onClick={copyEmbedCode}
-                    className="absolute top-2 right-2 px-3 py-1.5 bg-white/10 hover:bg-white/20 text-white text-sm rounded-lg transition-colors flex items-center gap-1.5"
-                  >
-                    {copied ? (
-                      <>
-                        <svg className="w-4 h-4 text-green-400" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                          <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M5 13l4 4L19 7" />
-                        </svg>
-                        Copied!
-                      </>
-                    ) : (
-                      <>
-                        <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                          <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M8 16H6a2 2 0 01-2-2V6a2 2 0 012-2h8a2 2 0 012 2v2m-6 12h8a2 2 0 002-2v-8a2 2 0 00-2-2h-8a2 2 0 00-2 2v8a2 2 0 002 2z" />
-                        </svg>
-                        Copy
-                      </>
-                    )}
-                  </button>
-                </div>
-
-                <div className="mt-4">
-                  <Link
-                    href={`/embed/video/${videoId}`}
-                    target="_blank"
-                    className="text-pink-400 text-sm hover:text-pink-300 flex items-center gap-1"
-                  >
-                    Preview embed
-                    <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                      <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M10 6H6a2 2 0 00-2 2v10a2 2 0 002 2h10a2 2 0 002-2v-4M14 4h6m0 0v6m0-6L10 14" />
-                    </svg>
-                  </Link>
-                </div>
-              </section>
             )}
 
             {/* Video Analytics */}
@@ -436,6 +343,6 @@ export default function EditVideoPage({ params }: { params: Promise<{ videoId: s
           </div>
         </div>
       </div>
-    </main>
+    </div>
   );
 }
