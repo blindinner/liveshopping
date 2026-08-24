@@ -1,7 +1,7 @@
 import { NextResponse } from 'next/server';
-import { createClient } from '@/lib/supabase/server';
+import { createClient, createServiceClient } from '@/lib/supabase/server';
 
-// PATCH /api/shows/[showId]/products/[productId] - Update show product (e.g., set active)
+// PATCH /api/shows/[showId]/products/[productId] - Update show product (e.g., set active, auction settings)
 export async function PATCH(
   request: Request,
   { params }: { params: Promise<{ showId: string; productId: string }> }
@@ -24,6 +24,56 @@ export async function PATCH(
         .update({ is_active: false })
         .eq('show_id', showId)
         .neq('id', productId);
+    }
+
+    // Handle auction ending - create winner record
+    if (updates.auction_status === 'ended') {
+      updates.auction_ended_at = new Date().toISOString();
+
+      const serviceClient = createServiceClient();
+
+      // Get highest bid for this auction
+      const { data: highestBid } = await serviceClient
+        .from('bids')
+        .select(`
+          *,
+          bidder:bidders(*)
+        `)
+        .eq('show_product_id', productId)
+        .order('amount', { ascending: false })
+        .limit(1)
+        .single();
+
+      if (highestBid) {
+        // Set winner on show_product
+        updates.winner_bidder_id = highestBid.bidder_id;
+
+        // Create auction winner record
+        await serviceClient
+          .from('auction_winners')
+          .upsert({
+            show_product_id: productId,
+            bidder_id: highestBid.bidder_id,
+            winning_amount: highestBid.amount,
+            payment_status: 'pending',
+          }, {
+            onConflict: 'show_product_id',
+          });
+
+        // Track analytics event
+        await serviceClient
+          .from('show_events')
+          .insert({
+            show_id: showId,
+            viewer_id: highestBid.bidder.viewer_id,
+            event_type: 'auction_won',
+            metadata: {
+              show_product_id: productId,
+              winning_amount: highestBid.amount,
+              bidder_id: highestBid.bidder_id,
+            },
+          });
+      }
     }
 
     const { data: showProduct, error } = await supabase

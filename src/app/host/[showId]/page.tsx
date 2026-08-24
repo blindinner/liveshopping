@@ -9,6 +9,7 @@ import { ProductStaging } from '@/components/host/ProductStaging';
 import { BroadcastPanel } from '@/components/host/BroadcastPanel';
 import { HostNotes } from '@/components/host/HostNotes';
 import { PollManager } from '@/components/host/PollManager';
+import { AuctionControl } from '@/components/host/AuctionControl';
 import { useChatMessages, useShowStatus, useViewerPresence } from '@/hooks/useRealtime';
 import { createClient } from '@/lib/supabase/client';
 import type { Show, ShowProduct, ChatMessage } from '@/types/database';
@@ -120,6 +121,16 @@ export default function HostControlPanel() {
   };
 
   const activeProduct = showProducts.find((p) => p.is_active);
+  const activeAuction = activeProduct?.sale_type === 'auction' ? activeProduct : null;
+
+  const handleAuctionUpdate = (updates: Partial<ShowProduct>) => {
+    if (!activeProduct) return;
+    setShowProducts((prev) =>
+      prev.map((p) =>
+        p.id === activeProduct.id ? { ...p, ...updates } : p
+      )
+    );
+  };
 
   if (isLoading || !show) {
     return (
@@ -217,11 +228,20 @@ export default function HostControlPanel() {
     </div>
   );
 
-  // Right column: Analytics, Polls, and Products
+  // Right column: Analytics, Polls, Auctions, and Products
   const rightColumn = (
     <>
       {/* Metrics Dashboard */}
       <MetricsDashboard showId={showId} viewerCount={viewerCount} />
+
+      {/* Auction Control - shows when an auction product is active */}
+      {activeAuction && (
+        <AuctionControl
+          showProduct={activeAuction}
+          showId={showId}
+          onAuctionUpdate={handleAuctionUpdate}
+        />
+      )}
 
       {/* Poll Manager */}
       <PollManager showId={showId} />

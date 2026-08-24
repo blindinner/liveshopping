@@ -3,7 +3,17 @@
 import { useState } from 'react';
 import Image from 'next/image';
 import { Button } from '@/components/ui/Button';
-import type { Product } from '@/types/database';
+import type { Product, SaleType, AuctionStatus } from '@/types/database';
+
+interface AuctionInfo {
+  sale_type: SaleType;
+  auction_status: AuctionStatus | null;
+  starting_price: number | null;
+  bid_increment: number | null;
+  current_bid: number | null;
+  bid_count: number;
+  is_highest_bidder: boolean;
+}
 
 interface ProductCardProps {
   product: Product;
@@ -11,6 +21,12 @@ interface ProductCardProps {
   isLoading?: boolean;
   locale: 'he' | 'en';
   onBuyNow?: (url: string) => void; // For manual products with checkout_url
+  // Auction props
+  auctionInfo?: AuctionInfo;
+  onPlaceBid?: (amount: number) => void;
+  onRegisterBidder?: () => void;
+  isRegisteredBidder?: boolean;
+  bidError?: string | null;
 }
 
 export function ProductCard({
@@ -19,21 +35,48 @@ export function ProductCard({
   isLoading = false,
   locale,
   onBuyNow,
+  auctionInfo,
+  onPlaceBid,
+  onRegisterBidder,
+  isRegisteredBidder = false,
+  bidError,
 }: ProductCardProps) {
   const [isExpanded, setIsExpanded] = useState(true);
+  const [bidAmount, setBidAmount] = useState('');
   const isRTL = locale === 'he';
   const isManualProduct = product.source === 'manual';
+  const isAuction = auctionInfo?.sale_type === 'auction';
+  const isAuctionActive = auctionInfo?.auction_status === 'active';
+  const isAuctionEnded = auctionInfo?.auction_status === 'ended';
 
   const t = {
     he: {
       addToCart: 'הוסף',
       buyNow: 'קנה עכשיו',
       featured: 'מוצר מומלץ',
+      auction: 'מכירה פומבית',
+      currentBid: 'הצעה נוכחית',
+      startingBid: 'הצעה פתיחה',
+      placeBid: 'הגש הצעה',
+      registerToBid: 'הירשם להצעות',
+      bids: 'הצעות',
+      youreWinning: 'אתה מוביל!',
+      auctionEnded: 'המכירה הסתיימה',
+      auctionPending: 'ממתין להתחלה',
     },
     en: {
       addToCart: 'Add',
       buyNow: 'Buy Now',
       featured: 'Featured',
+      auction: 'Auction',
+      currentBid: 'Current Bid',
+      startingBid: 'Starting Bid',
+      placeBid: 'Place Bid',
+      registerToBid: 'Register to Bid',
+      bids: 'bids',
+      youreWinning: "You're winning!",
+      auctionEnded: 'Auction Ended',
+      auctionPending: 'Starting Soon',
     },
   }[locale];
 
@@ -56,6 +99,22 @@ export function ProductCard({
     }).format(price);
   };
 
+  const getMinimumBid = () => {
+    if (!auctionInfo) return 0;
+    const currentBid = auctionInfo.current_bid || 0;
+    const startingPrice = auctionInfo.starting_price || 0;
+    const increment = auctionInfo.bid_increment || 1;
+    return currentBid > 0 ? currentBid + increment : startingPrice;
+  };
+
+  const handlePlaceBid = () => {
+    const amount = parseFloat(bidAmount);
+    if (amount >= getMinimumBid() && onPlaceBid) {
+      onPlaceBid(amount);
+      setBidAmount('');
+    }
+  };
+
   return (
     <div
       className={`absolute top-1/2 -translate-y-1/2 z-30 pointer-events-auto transition-all duration-300 ${
@@ -67,13 +126,19 @@ export function ProductCard({
         {/* Collapse/expand button */}
         <button
           onClick={() => setIsExpanded(!isExpanded)}
-          className="w-full py-1.5 px-2 flex items-center justify-center gap-1 bg-pink-500/20 border-b border-white/10"
+          className={`w-full py-1.5 px-2 flex items-center justify-center gap-1 border-b border-white/10 ${
+            isAuction ? 'bg-orange-500/20' : 'bg-pink-500/20'
+          }`}
         >
-          <span className="text-pink-400 text-[10px] font-medium uppercase tracking-wide">
-            {t.featured}
+          <span className={`text-[10px] font-medium uppercase tracking-wide ${
+            isAuction ? 'text-orange-400' : 'text-pink-400'
+          }`}>
+            {isAuction ? t.auction : t.featured}
           </span>
           <svg
-            className={`w-3 h-3 text-pink-400 transition-transform ${isExpanded ? 'rotate-180' : ''}`}
+            className={`w-3 h-3 transition-transform ${isExpanded ? 'rotate-180' : ''} ${
+              isAuction ? 'text-orange-400' : 'text-pink-400'
+            }`}
             fill="none"
             stroke="currentColor"
             viewBox="0 0 24 24"
@@ -117,20 +182,103 @@ export function ProductCard({
               <h3 className="text-white font-medium text-xs leading-tight line-clamp-2">
                 {product.title}
               </h3>
-              <p className="text-pink-400 font-bold text-sm mt-1">
-                {formatPrice(product.price, product.currency)}
-              </p>
+
+              {isAuction && auctionInfo ? (
+                <>
+                  {/* Auction status */}
+                  {isAuctionEnded && (
+                    <p className="text-gray-400 text-[10px] mt-1">{t.auctionEnded}</p>
+                  )}
+                  {auctionInfo.auction_status === 'pending' && (
+                    <p className="text-orange-400 text-[10px] mt-1">{t.auctionPending}</p>
+                  )}
+
+                  {/* Current bid or starting price */}
+                  <div className="mt-1">
+                    <p className="text-white/50 text-[10px]">
+                      {auctionInfo.current_bid ? t.currentBid : t.startingBid}
+                    </p>
+                    <p className="text-orange-400 font-bold text-sm">
+                      {formatPrice(
+                        auctionInfo.current_bid || auctionInfo.starting_price || 0,
+                        product.currency
+                      )}
+                    </p>
+                  </div>
+
+                  {/* Bid count */}
+                  {auctionInfo.bid_count > 0 && (
+                    <p className="text-white/50 text-[10px]">
+                      {auctionInfo.bid_count} {t.bids}
+                    </p>
+                  )}
+
+                  {/* Winning indicator */}
+                  {auctionInfo.is_highest_bidder && isAuctionActive && (
+                    <p className="text-green-400 text-[10px] font-medium mt-1">
+                      {t.youreWinning}
+                    </p>
+                  )}
+                </>
+              ) : (
+                <p className="text-pink-400 font-bold text-sm mt-1">
+                  {formatPrice(product.price, product.currency)}
+                </p>
+              )}
             </div>
 
             {/* Action button */}
-            <Button
-              onClick={handleAction}
-              isLoading={isLoading}
-              size="sm"
-              className="w-full text-xs"
-            >
-              {isManualProduct ? t.buyNow : t.addToCart}
-            </Button>
+            {isAuction && auctionInfo ? (
+              <div className="w-full space-y-1.5">
+                {!isRegisteredBidder ? (
+                  <Button
+                    onClick={onRegisterBidder}
+                    size="sm"
+                    variant="secondary"
+                    className="w-full text-xs bg-orange-500 hover:bg-orange-600"
+                  >
+                    {t.registerToBid}
+                  </Button>
+                ) : isAuctionActive ? (
+                  <>
+                    <div className="flex gap-1">
+                      <input
+                        type="number"
+                        value={bidAmount}
+                        onChange={(e) => setBidAmount(e.target.value)}
+                        placeholder={getMinimumBid().toString()}
+                        className="flex-1 bg-black/30 text-white text-xs rounded px-2 py-1.5 w-0 min-w-0 border border-white/10 focus:outline-none focus:border-orange-500"
+                      />
+                      <Button
+                        onClick={handlePlaceBid}
+                        isLoading={isLoading}
+                        size="sm"
+                        disabled={!bidAmount || parseFloat(bidAmount) < getMinimumBid()}
+                        className="text-xs bg-orange-500 hover:bg-orange-600 px-2"
+                      >
+                        {t.placeBid}
+                      </Button>
+                    </div>
+                    {bidError && (
+                      <p className="text-red-400 text-[10px] text-center">{bidError}</p>
+                    )}
+                  </>
+                ) : (
+                  <p className="text-white/50 text-[10px] text-center">
+                    {isAuctionEnded ? t.auctionEnded : t.auctionPending}
+                  </p>
+                )}
+              </div>
+            ) : (
+              <Button
+                onClick={handleAction}
+                isLoading={isLoading}
+                size="sm"
+                className="w-full text-xs"
+              >
+                {isManualProduct ? t.buyNow : t.addToCart}
+              </Button>
+            )}
           </div>
         )}
 

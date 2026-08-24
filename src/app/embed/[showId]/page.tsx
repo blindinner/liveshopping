@@ -5,6 +5,8 @@ import Image from 'next/image';
 import { VideoPlayer } from '@/components/viewer/VideoPlayer';
 import { CartDrawer } from '@/components/viewer/CartDrawer';
 import { PollView, PollButton } from '@/components/viewer/PollCard';
+import { BidderRegistration } from '@/components/viewer/BidderRegistration';
+import { AuctionWinnerModal } from '@/components/viewer/AuctionWinnerModal';
 import { Countdown } from '@/components/viewer/Countdown';
 import {
   useShowProducts,
@@ -13,8 +15,19 @@ import {
 } from '@/hooks/useRealtime';
 import { useCart } from '@/hooks/useCart';
 import { useActivePoll } from '@/hooks/usePolls';
-import type { Product } from '@/types/database';
+import { useBidderRegistration, useAuction, useAuctionWins } from '@/hooks/useAuction';
+import type { Product, ShowProduct, SaleType, AuctionStatus } from '@/types/database';
 import { useParams, useSearchParams } from 'next/navigation';
+
+interface AuctionInfo {
+  sale_type: SaleType;
+  auction_status: AuctionStatus | null;
+  starting_price: number | null;
+  bid_increment: number | null;
+  current_bid: number | null;
+  bid_count: number;
+  is_highest_bidder: boolean;
+}
 
 // Instagram-style product card for mobile
 function MobileProductCard({
@@ -22,23 +35,55 @@ function MobileProductCard({
   onAction,
   isLoading,
   locale,
+  auctionInfo,
+  onPlaceBid,
+  onRegisterBidder,
+  isRegisteredBidder,
+  bidError,
 }: {
   product: Product;
   onAction: () => void;
   isLoading: boolean;
   locale: 'he' | 'en';
+  auctionInfo?: AuctionInfo;
+  onPlaceBid?: (amount: number) => void;
+  onRegisterBidder?: () => void;
+  isRegisteredBidder?: boolean;
+  bidError?: string | null;
 }) {
+  const [bidAmount, setBidAmount] = useState('');
   const isRTL = locale === 'he';
   const isManualProduct = product.source === 'manual';
+  const isAuction = auctionInfo?.sale_type === 'auction';
+  const isAuctionActive = auctionInfo?.auction_status === 'active';
+  const isAuctionEnded = auctionInfo?.auction_status === 'ended';
 
   const t = {
     he: {
       buyNow: 'קנה עכשיו',
       addToCart: 'הוסף לסל',
+      auction: 'מכירה פומבית',
+      currentBid: 'הצעה נוכחית',
+      startingBid: 'מחיר פתיחה',
+      placeBid: 'הגש הצעה',
+      registerToBid: 'הירשם להציע',
+      bids: 'הצעות',
+      youreWinning: 'אתה מוביל!',
+      auctionEnded: 'המכירה הסתיימה',
+      auctionPending: 'ממתין להתחלה',
     },
     en: {
       buyNow: 'Buy Now',
       addToCart: 'Add to Cart',
+      auction: 'Auction',
+      currentBid: 'Current Bid',
+      startingBid: 'Starting Bid',
+      placeBid: 'Bid',
+      registerToBid: 'Register to Bid',
+      bids: 'bids',
+      youreWinning: "You're winning!",
+      auctionEnded: 'Auction Ended',
+      auctionPending: 'Starting Soon',
     },
   }[locale];
 
@@ -49,58 +94,153 @@ function MobileProductCard({
     }).format(price);
   };
 
+  const getMinimumBid = () => {
+    if (!auctionInfo) return 0;
+    const currentBid = auctionInfo.current_bid || 0;
+    const startingPrice = auctionInfo.starting_price || 0;
+    const increment = auctionInfo.bid_increment || 1;
+    return currentBid > 0 ? currentBid + increment : startingPrice;
+  };
+
+  const handlePlaceBid = () => {
+    const amount = parseFloat(bidAmount);
+    if (amount >= getMinimumBid() && onPlaceBid) {
+      onPlaceBid(amount);
+      setBidAmount('');
+    }
+  };
+
   return (
     <div
-      className="flex items-center gap-3 p-3 bg-black/70 backdrop-blur-md rounded-2xl border border-white/20"
+      className={`p-3 bg-black/70 backdrop-blur-md rounded-2xl border ${isAuction ? 'border-orange-500/30' : 'border-white/20'}`}
       dir={isRTL ? 'rtl' : 'ltr'}
     >
-      {/* Product image */}
-      <div className="relative w-16 h-16 rounded-xl overflow-hidden bg-white/10 shrink-0">
-        {product.image_url ? (
-          <Image
-            src={product.image_url}
-            alt={product.title}
-            fill
-            className="object-cover"
-          />
-        ) : (
-          <div className="w-full h-full flex items-center justify-center text-white/40">
-            <svg className="w-6 h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-              <path
-                strokeLinecap="round"
-                strokeLinejoin="round"
-                strokeWidth={1.5}
-                d="M4 16l4.586-4.586a2 2 0 012.828 0L16 16m-2-2l1.586-1.586a2 2 0 012.828 0L20 14m-6-6h.01M6 20h12a2 2 0 002-2V6a2 2 0 00-2-2H6a2 2 0 00-2 2v12a2 2 0 002 2z"
+      <div className="flex items-center gap-3">
+        {/* Product image */}
+        <div className="relative w-16 h-16 rounded-xl overflow-hidden bg-white/10 shrink-0">
+          {product.image_url ? (
+            <Image
+              src={product.image_url}
+              alt={product.title}
+              fill
+              className="object-cover"
+            />
+          ) : (
+            <div className="w-full h-full flex items-center justify-center text-white/40">
+              <svg className="w-6 h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                <path
+                  strokeLinecap="round"
+                  strokeLinejoin="round"
+                  strokeWidth={1.5}
+                  d="M4 16l4.586-4.586a2 2 0 012.828 0L16 16m-2-2l1.586-1.586a2 2 0 012.828 0L20 14m-6-6h.01M6 20h12a2 2 0 002-2V6a2 2 0 00-2-2H6a2 2 0 00-2 2v12a2 2 0 002 2z"
+                />
+              </svg>
+            </div>
+          )}
+          {/* Auction badge */}
+          {isAuction && (
+            <div className="absolute top-0 left-0 right-0 bg-orange-500 text-white text-[10px] font-bold text-center py-0.5">
+              {t.auction}
+            </div>
+          )}
+        </div>
+
+        {/* Product info */}
+        <div className="flex-1 min-w-0">
+          <h3 className="text-white font-medium text-sm leading-tight line-clamp-1">
+            {product.title}
+          </h3>
+
+          {isAuction && auctionInfo ? (
+            <div className="mt-0.5">
+              <p className="text-white/50 text-[10px]">
+                {auctionInfo.current_bid ? t.currentBid : t.startingBid}
+              </p>
+              <p className="text-orange-400 font-bold text-base">
+                {formatPrice(
+                  auctionInfo.current_bid || auctionInfo.starting_price || 0,
+                  product.currency
+                )}
+              </p>
+              <div className="flex items-center gap-2 mt-0.5">
+                {auctionInfo.bid_count > 0 && (
+                  <span className="text-white/50 text-[10px]">
+                    {auctionInfo.bid_count} {t.bids}
+                  </span>
+                )}
+                {auctionInfo.is_highest_bidder && isAuctionActive && (
+                  <span className="text-green-400 text-[10px] font-medium">
+                    {t.youreWinning}
+                  </span>
+                )}
+              </div>
+            </div>
+          ) : (
+            <p className="text-pink-400 font-bold text-base mt-0.5">
+              {formatPrice(product.price, product.currency)}
+            </p>
+          )}
+        </div>
+
+        {/* Action button - only for non-auction products */}
+        {!isAuction && (
+          <button
+            onClick={onAction}
+            disabled={isLoading}
+            className="shrink-0 px-4 py-2 bg-pink-500 hover:bg-pink-600 active:bg-pink-700 disabled:opacity-50 text-white font-semibold text-sm rounded-full transition-colors"
+          >
+            {isLoading ? (
+              <div className="w-5 h-5 border-2 border-white border-t-transparent rounded-full animate-spin" />
+            ) : isManualProduct ? (
+              t.buyNow
+            ) : (
+              t.addToCart
+            )}
+          </button>
+        )}
+      </div>
+
+      {/* Auction bidding section */}
+      {isAuction && auctionInfo && (
+        <div className="mt-3 pt-3 border-t border-white/10">
+          {!isRegisteredBidder ? (
+            <button
+              onClick={onRegisterBidder}
+              className="w-full py-2 bg-orange-500 hover:bg-orange-600 active:bg-orange-700 text-white font-semibold text-sm rounded-full transition-colors"
+            >
+              {t.registerToBid}
+            </button>
+          ) : isAuctionActive ? (
+            <div className="flex gap-2">
+              <input
+                type="number"
+                value={bidAmount}
+                onChange={(e) => setBidAmount(e.target.value)}
+                placeholder={getMinimumBid().toString()}
+                className="flex-1 bg-black/30 text-white text-sm rounded-full px-4 py-2 border border-white/10 focus:outline-none focus:border-orange-500 min-w-0"
               />
-            </svg>
-          </div>
-        )}
-      </div>
-
-      {/* Product info */}
-      <div className="flex-1 min-w-0">
-        <h3 className="text-white font-medium text-sm leading-tight line-clamp-2">
-          {product.title}
-        </h3>
-        <p className="text-pink-400 font-bold text-base mt-0.5">
-          {formatPrice(product.price, product.currency)}
-        </p>
-      </div>
-
-      {/* Action button */}
-      <button
-        onClick={onAction}
-        disabled={isLoading}
-        className="shrink-0 px-4 py-2 bg-pink-500 hover:bg-pink-600 active:bg-pink-700 disabled:opacity-50 text-white font-semibold text-sm rounded-full transition-colors"
-      >
-        {isLoading ? (
-          <div className="w-5 h-5 border-2 border-white border-t-transparent rounded-full animate-spin" />
-        ) : isManualProduct ? (
-          t.buyNow
-        ) : (
-          t.addToCart
-        )}
-      </button>
+              <button
+                onClick={handlePlaceBid}
+                disabled={isLoading || !bidAmount || parseFloat(bidAmount) < getMinimumBid()}
+                className="shrink-0 px-5 py-2 bg-orange-500 hover:bg-orange-600 active:bg-orange-700 disabled:opacity-50 text-white font-semibold text-sm rounded-full transition-colors"
+              >
+                {isLoading ? (
+                  <div className="w-5 h-5 border-2 border-white border-t-transparent rounded-full animate-spin" />
+                ) : (
+                  t.placeBid
+                )}
+              </button>
+            </div>
+          ) : (
+            <p className="text-center text-white/50 text-sm py-1">
+              {isAuctionEnded ? t.auctionEnded : t.auctionPending}
+            </p>
+          )}
+          {bidError && (
+            <p className="text-red-400 text-xs text-center mt-2">{bidError}</p>
+          )}
+        </div>
+      )}
     </div>
   );
 }
@@ -117,12 +257,29 @@ export default function EmbedLiveViewerPage() {
   const [viewerId] = useState(() => `embed-${Date.now()}-${Math.random().toString(36).slice(2)}`);
   const [isCartOpen, setIsCartOpen] = useState(false);
   const [isPollOpen, setIsPollOpen] = useState(false);
+  const [showBidderRegistration, setShowBidderRegistration] = useState(false);
+  const [dismissedWinIds, setDismissedWinIds] = useState<string[]>([]);
 
   // Real-time hooks
   const { show, isLoading: showLoading } = useShowStatus(showId);
   const { activeProduct } = useShowProducts(showId);
   const { viewerCount } = useViewerPresence(showId, viewerId);
   const { activePoll, hasVoted, submitVote } = useActivePoll(showId, viewerId);
+
+  // Auction hooks
+  const { isRegistered: isRegisteredBidder, register: registerBidder } = useBidderRegistration(showId, viewerId);
+  const {
+    currentBid,
+    bidCount,
+    isHighestBidder,
+    isPlacingBid,
+    bidError,
+    placeBid,
+  } = useAuction(activeProduct?.id || '', showId, viewerId);
+  const { wins } = useAuctionWins(showId, viewerId);
+
+  // Get the latest undismissed win
+  const latestWin = wins.find(w => !dismissedWinIds.includes(w.id));
 
   // Cart hook - pass showId and viewerId for analytics tracking
   const {
@@ -168,6 +325,40 @@ export default function EmbedLiveViewerPage() {
   const handleCheckout = useCallback(() => {
     checkout();
   }, [checkout]);
+
+  // Handle bidder registration
+  const handleRegisterBidder = async (name: string, email: string, phone?: string) => {
+    const bidder = await registerBidder(name, email, phone);
+    return !!bidder;
+  };
+
+  // Handle place bid
+  const handlePlaceBid = async (amount: number) => {
+    await placeBid(amount);
+  };
+
+  // Build auction info for MobileProductCard
+  const getAuctionInfo = (showProduct: ShowProduct) => {
+    // Debug log - remove after testing
+    console.log('[Auction Debug] ShowProduct:', {
+      id: showProduct.id,
+      sale_type: showProduct.sale_type,
+      auction_status: showProduct.auction_status,
+      starting_price: showProduct.starting_price,
+      bid_increment: showProduct.bid_increment,
+    });
+
+    if (showProduct.sale_type !== 'auction') return undefined;
+    return {
+      sale_type: showProduct.sale_type,
+      auction_status: showProduct.auction_status,
+      starting_price: showProduct.starting_price,
+      bid_increment: showProduct.bid_increment,
+      current_bid: currentBid,
+      bid_count: bidCount,
+      is_highest_bidder: isHighestBidder,
+    };
+  };
 
   // Translations
   const t = {
@@ -358,8 +549,13 @@ export default function EmbedLiveViewerPage() {
           <MobileProductCard
             product={activeProduct.product}
             onAction={() => handleProductAction(activeProduct.product!)}
-            isLoading={cartLoading}
+            isLoading={cartLoading || isPlacingBid}
             locale={locale}
+            auctionInfo={getAuctionInfo(activeProduct)}
+            onPlaceBid={handlePlaceBid}
+            onRegisterBidder={() => setShowBidderRegistration(true)}
+            isRegisteredBidder={isRegisteredBidder}
+            bidError={bidError}
           />
         )}
 
@@ -390,6 +586,24 @@ export default function EmbedLiveViewerPage() {
         isLoading={cartLoading}
         locale={locale}
       />
+
+      {/* Bidder Registration Modal */}
+      <BidderRegistration
+        isOpen={showBidderRegistration}
+        onClose={() => setShowBidderRegistration(false)}
+        onRegister={handleRegisterBidder}
+        locale={locale}
+      />
+
+      {/* Auction Winner Modal */}
+      {latestWin && (
+        <AuctionWinnerModal
+          winner={latestWin}
+          isOpen={true}
+          onClose={() => setDismissedWinIds(prev => [...prev, latestWin.id])}
+          locale={locale}
+        />
+      )}
     </div>
   );
 }

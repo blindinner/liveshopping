@@ -2,7 +2,7 @@
 
 import { useEffect, useState, useCallback } from 'react';
 import Image from 'next/image';
-import type { ShowProduct } from '@/types/database';
+import type { ShowProduct, SaleType } from '@/types/database';
 
 interface ShopifyProduct {
   shopify_product_id: string;
@@ -54,6 +54,12 @@ export function ProductStaging({
   const [isAdding, setIsAdding] = useState<string | null>(null);
   const [editingNotesId, setEditingNotesId] = useState<string | null>(null);
   const [notesValue, setNotesValue] = useState('');
+  const [editingAuctionId, setEditingAuctionId] = useState<string | null>(null);
+  const [auctionSettings, setAuctionSettings] = useState({
+    sale_type: 'buy_now' as SaleType,
+    starting_price: '',
+    bid_increment: '',
+  });
   const [showManualForm, setShowManualForm] = useState(false);
   const [manualProduct, setManualProduct] = useState<ManualProductForm>(emptyManualProduct);
   const [isAddingManual, setIsAddingManual] = useState(false);
@@ -202,6 +208,80 @@ export function ProductStaging({
   const cancelEditingNotes = () => {
     setEditingNotesId(null);
     setNotesValue('');
+  };
+
+  // Open auction settings editor
+  const startEditingAuction = (sp: ShowProduct) => {
+    setEditingAuctionId(sp.id);
+    setAuctionSettings({
+      sale_type: sp.sale_type || 'buy_now',
+      starting_price: sp.starting_price?.toString() || '',
+      bid_increment: sp.bid_increment?.toString() || '',
+    });
+  };
+
+  // Save auction settings
+  const saveAuctionSettings = async () => {
+    if (!editingAuctionId) return;
+
+    try {
+      const updates: Record<string, unknown> = {
+        sale_type: auctionSettings.sale_type,
+      };
+
+      if (auctionSettings.sale_type === 'auction') {
+        updates.starting_price = auctionSettings.starting_price
+          ? parseFloat(auctionSettings.starting_price)
+          : null;
+        updates.bid_increment = auctionSettings.bid_increment
+          ? parseFloat(auctionSettings.bid_increment)
+          : null;
+        updates.auction_status = 'pending';
+      } else {
+        updates.starting_price = null;
+        updates.bid_increment = null;
+        updates.auction_status = null;
+      }
+
+      await fetch(`/api/shows/${showId}/products/${editingAuctionId}`, {
+        method: 'PATCH',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify(updates),
+      });
+
+      onProductsChange(
+        showProducts.map((sp) =>
+          sp.id === editingAuctionId
+            ? {
+                ...sp,
+                sale_type: auctionSettings.sale_type,
+                starting_price: updates.starting_price as number | null,
+                bid_increment: updates.bid_increment as number | null,
+                auction_status: auctionSettings.sale_type === 'auction' ? 'pending' : null,
+              }
+            : sp
+        )
+      );
+    } catch (error) {
+      console.error('Failed to save auction settings:', error);
+    } finally {
+      setEditingAuctionId(null);
+      setAuctionSettings({
+        sale_type: 'buy_now',
+        starting_price: '',
+        bid_increment: '',
+      });
+    }
+  };
+
+  // Cancel auction settings editing
+  const cancelEditingAuction = () => {
+    setEditingAuctionId(null);
+    setAuctionSettings({
+      sale_type: 'buy_now',
+      starting_price: '',
+      bid_increment: '',
+    });
   };
 
   // Add manual product
@@ -455,6 +535,11 @@ export function ProductStaging({
                             Manual
                           </span>
                         )}
+                        {sp.sale_type === 'auction' && (
+                          <span className="shrink-0 px-1.5 py-0.5 bg-orange-500/20 text-orange-300 text-[10px] font-medium rounded">
+                            Auction
+                          </span>
+                        )}
                       </div>
                       <p className="text-white/60 text-xs">
                         {sp.product?.currency} {sp.product?.price}
@@ -462,6 +547,16 @@ export function ProductStaging({
                     </div>
 
                     <div className="flex items-center gap-2">
+                      <button
+                        onClick={() => startEditingAuction(sp)}
+                        className={`px-2 py-1 rounded-lg text-xs transition-colors ${
+                          sp.sale_type === 'auction'
+                            ? 'text-orange-400 hover:bg-orange-500/10'
+                            : 'text-white/50 hover:text-white/70 hover:bg-white/10'
+                        }`}
+                      >
+                        {sp.sale_type === 'auction' ? 'Edit auction' : 'Make auction'}
+                      </button>
                       <button
                         onClick={() => startEditingNotes(sp)}
                         className={`px-2 py-1 rounded-lg text-xs transition-colors ${
@@ -518,6 +613,83 @@ export function ProductStaging({
                         >
                           Save Notes
                         </button>
+                      </div>
+                    </div>
+                  )}
+
+                  {editingAuctionId === sp.id && (
+                    <div className="p-3 bg-black/30 rounded-xl border border-orange-500/30">
+                      <div className="space-y-4">
+                        <div>
+                          <label className="block text-white/70 text-xs mb-2">Sale Type</label>
+                          <div className="flex gap-2">
+                            <button
+                              onClick={() => setAuctionSettings({ ...auctionSettings, sale_type: 'buy_now' })}
+                              className={`flex-1 px-3 py-2 rounded-lg text-sm font-medium transition-colors ${
+                                auctionSettings.sale_type === 'buy_now'
+                                  ? 'bg-pink-500 text-white'
+                                  : 'bg-white/10 text-white/70 hover:bg-white/20'
+                              }`}
+                            >
+                              Buy Now
+                            </button>
+                            <button
+                              onClick={() => setAuctionSettings({ ...auctionSettings, sale_type: 'auction' })}
+                              className={`flex-1 px-3 py-2 rounded-lg text-sm font-medium transition-colors ${
+                                auctionSettings.sale_type === 'auction'
+                                  ? 'bg-orange-500 text-white'
+                                  : 'bg-white/10 text-white/70 hover:bg-white/20'
+                              }`}
+                            >
+                              Auction
+                            </button>
+                          </div>
+                        </div>
+
+                        {auctionSettings.sale_type === 'auction' && (
+                          <div className="grid grid-cols-2 gap-3">
+                            <div>
+                              <label className="block text-white/70 text-xs mb-1">Starting Price *</label>
+                              <input
+                                type="number"
+                                step="0.01"
+                                value={auctionSettings.starting_price}
+                                onChange={(e) => setAuctionSettings({ ...auctionSettings, starting_price: e.target.value })}
+                                placeholder="0.00"
+                                className="w-full bg-black/30 text-white text-sm rounded-lg px-3 py-2 focus:outline-none focus:ring-1 focus:ring-orange-500/50 placeholder:text-white/30 border border-white/10"
+                              />
+                              <p className="text-white/40 text-xs mt-1">Minimum bid to start</p>
+                            </div>
+                            <div>
+                              <label className="block text-white/70 text-xs mb-1">Bid Increment *</label>
+                              <input
+                                type="number"
+                                step="0.01"
+                                value={auctionSettings.bid_increment}
+                                onChange={(e) => setAuctionSettings({ ...auctionSettings, bid_increment: e.target.value })}
+                                placeholder="0.00"
+                                className="w-full bg-black/30 text-white text-sm rounded-lg px-3 py-2 focus:outline-none focus:ring-1 focus:ring-orange-500/50 placeholder:text-white/30 border border-white/10"
+                              />
+                              <p className="text-white/40 text-xs mt-1">Min increase per bid</p>
+                            </div>
+                          </div>
+                        )}
+
+                        <div className="flex justify-end gap-2">
+                          <button
+                            onClick={cancelEditingAuction}
+                            className="px-3 py-1.5 text-white/60 hover:text-white text-sm transition-colors"
+                          >
+                            Cancel
+                          </button>
+                          <button
+                            onClick={saveAuctionSettings}
+                            disabled={auctionSettings.sale_type === 'auction' && (!auctionSettings.starting_price || !auctionSettings.bid_increment)}
+                            className="px-3 py-1.5 bg-orange-500 hover:bg-orange-600 disabled:opacity-50 disabled:cursor-not-allowed text-white text-sm rounded-lg transition-colors"
+                          >
+                            Save Settings
+                          </button>
+                        </div>
                       </div>
                     </div>
                   )}

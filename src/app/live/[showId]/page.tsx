@@ -8,6 +8,8 @@ import { ProductCard } from '@/components/viewer/ProductCard';
 import { PollView, PollButton } from '@/components/viewer/PollCard';
 import { CartDrawer } from '@/components/viewer/CartDrawer';
 import { CheckoutBar } from '@/components/viewer/CheckoutBar';
+import { BidderRegistration } from '@/components/viewer/BidderRegistration';
+import { AuctionWinnerModal } from '@/components/viewer/AuctionWinnerModal';
 // TODO: Re-enable lead capture form after testing
 // import { LeadCaptureForm } from '@/components/viewer/LeadCaptureForm';
 import { Countdown } from '@/components/viewer/Countdown';
@@ -20,6 +22,7 @@ import {
 } from '@/hooks/useRealtime';
 import { useCart } from '@/hooks/useCart';
 import { useActivePoll } from '@/hooks/usePolls';
+import { useBidderRegistration, useAuction, useAuctionWins } from '@/hooks/useAuction';
 import type { ShowProduct } from '@/types/database';
 import { useParams } from 'next/navigation';
 
@@ -35,6 +38,8 @@ export default function LiveViewerPage() {
   const [showLeadForm, setShowLeadForm] = useState(false);
   const [isCartOpen, setIsCartOpen] = useState(false);
   const [isPollOpen, setIsPollOpen] = useState(false);
+  const [showBidderRegistration, setShowBidderRegistration] = useState(false);
+  const [dismissedWinIds, setDismissedWinIds] = useState<string[]>([]);
 
   // Real-time hooks
   const { show, isLoading: showLoading } = useShowStatus(showId);
@@ -43,6 +48,22 @@ export default function LiveViewerPage() {
   const { viewerCount } = useViewerPresence(showId, viewerId);
   const { reactions, sendReaction } = useReactions(showId);
   const { activePoll, hasVoted, submitVote } = useActivePoll(showId, viewerId);
+
+  // Auction hooks
+  const { isRegistered: isRegisteredBidder, register: registerBidder } = useBidderRegistration(showId, viewerId);
+  const {
+    currentBid,
+    bidCount,
+    highestBidder,
+    isHighestBidder,
+    isPlacingBid,
+    bidError,
+    placeBid,
+  } = useAuction(activeProduct?.id || '', showId, viewerId);
+  const { wins } = useAuctionWins(showId, viewerId);
+
+  // Get the latest undismissed win
+  const latestWin = wins.find(w => !dismissedWinIds.includes(w.id));
 
   // Cart hook - pass showId and viewerId for analytics tracking
   const {
@@ -107,6 +128,31 @@ export default function LiveViewerPage() {
     },
     [viewerName, sendMessage]
   );
+
+  // Handle bidder registration
+  const handleRegisterBidder = async (name: string, email: string, phone?: string) => {
+    const bidder = await registerBidder(name, email, phone);
+    return !!bidder;
+  };
+
+  // Handle place bid
+  const handlePlaceBid = async (amount: number) => {
+    await placeBid(amount);
+  };
+
+  // Build auction info for ProductCard
+  const getAuctionInfo = (showProduct: ShowProduct) => {
+    if (showProduct.sale_type !== 'auction') return undefined;
+    return {
+      sale_type: showProduct.sale_type,
+      auction_status: showProduct.auction_status,
+      starting_price: showProduct.starting_price,
+      bid_increment: showProduct.bid_increment,
+      current_bid: currentBid,
+      bid_count: bidCount,
+      is_highest_bidder: isHighestBidder,
+    };
+  };
 
 
   if (showLoading || !show) {
@@ -210,8 +256,13 @@ export default function LiveViewerPage() {
         <ProductCard
           product={activeProduct.product}
           onAddToCart={() => handleAddToCart(activeProduct)}
-          isLoading={cartLoading}
+          isLoading={cartLoading || isPlacingBid}
           locale={locale}
+          auctionInfo={getAuctionInfo(activeProduct)}
+          onPlaceBid={handlePlaceBid}
+          onRegisterBidder={() => setShowBidderRegistration(true)}
+          isRegisteredBidder={isRegisteredBidder}
+          bidError={bidError}
         />
       )}
 
@@ -306,6 +357,24 @@ export default function LiveViewerPage() {
         isLoading={cartLoading}
         locale={locale}
       />
+
+      {/* Bidder Registration Modal */}
+      <BidderRegistration
+        isOpen={showBidderRegistration}
+        onClose={() => setShowBidderRegistration(false)}
+        onRegister={handleRegisterBidder}
+        locale={locale}
+      />
+
+      {/* Auction Winner Modal */}
+      {latestWin && (
+        <AuctionWinnerModal
+          winner={latestWin}
+          isOpen={true}
+          onClose={() => setDismissedWinIds(prev => [...prev, latestWin.id])}
+          locale={locale}
+        />
+      )}
 
       {/* TODO: Re-enable lead capture form after testing */}
     </div>

@@ -48,6 +48,10 @@ export interface Product {
   updated_at: string;
 }
 
+// Auction types
+export type SaleType = 'buy_now' | 'auction';
+export type AuctionStatus = 'pending' | 'active' | 'ended';
+
 export interface ShowProduct {
   id: string;
   show_id: string;
@@ -56,8 +60,19 @@ export interface ShowProduct {
   is_active: boolean;
   host_notes: string | null;
   created_at: string;
+  // Auction fields
+  sale_type: SaleType;
+  starting_price: number | null;
+  bid_increment: number | null;
+  auction_status: AuctionStatus | null;
+  auction_ended_at: string | null;
+  winner_bidder_id: string | null;
   // Joined product data
   product?: Product;
+  // Computed auction data (from queries)
+  current_bid?: number;
+  bid_count?: number;
+  highest_bidder?: Bidder;
 }
 
 export interface ChatMessage {
@@ -157,6 +172,41 @@ export interface PollWithResults extends Poll {
   viewer_vote?: string; // option_id the current viewer voted for
 }
 
+// Bidder types
+export interface Bidder {
+  id: string;
+  show_id: string;
+  viewer_id: string;
+  name: string;
+  email: string;
+  phone: string | null;
+  approved: boolean;
+  created_at: string;
+}
+
+export interface Bid {
+  id: string;
+  show_product_id: string;
+  bidder_id: string;
+  amount: number;
+  created_at: string;
+  // Joined data
+  bidder?: Bidder;
+}
+
+export interface AuctionWinner {
+  id: string;
+  show_product_id: string;
+  bidder_id: string;
+  winning_amount: number;
+  payment_status: 'pending' | 'paid';
+  paid_at: string | null;
+  created_at: string;
+  // Joined data
+  bidder?: Bidder;
+  show_product?: ShowProduct;
+}
+
 // Video types (for shoppable videos feature)
 export type VideoStatus = 'processing' | 'ready' | 'error';
 
@@ -206,7 +256,9 @@ export type ShowEventType =
   | 'poll_vote'
   | 'video_view'
   | 'video_play'
-  | 'video_complete';
+  | 'video_complete'
+  | 'bid_placed'
+  | 'auction_won';
 
 export interface ShowEvent {
   id: string;
