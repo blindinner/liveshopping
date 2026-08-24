@@ -7,6 +7,8 @@ import { CartDrawer } from '@/components/viewer/CartDrawer';
 import { PollView, PollButton } from '@/components/viewer/PollCard';
 import { Countdown } from '@/components/viewer/Countdown';
 import { Chat } from '@/components/viewer/Chat';
+import { BidderRegistration } from '@/components/viewer/BidderRegistration';
+import { AuctionWinnerModal } from '@/components/viewer/AuctionWinnerModal';
 import {
   useShowProducts,
   useViewerPresence,
@@ -14,9 +16,20 @@ import {
 } from '@/hooks/useRealtime';
 import { useCart } from '@/hooks/useCart';
 import { useActivePoll } from '@/hooks/usePolls';
-import type { Product, Show } from '@/types/database';
+import { useBidderRegistration, useAuction, useAuctionWins } from '@/hooks/useAuction';
+import type { Product, Show, ShowProduct, SaleType, AuctionStatus } from '@/types/database';
 import { useParams, useSearchParams } from 'next/navigation';
 import { createClient } from '@/lib/supabase/client';
+
+interface AuctionInfo {
+  sale_type: SaleType;
+  auction_status: AuctionStatus | null;
+  starting_price: number | null;
+  bid_increment: number | null;
+  current_bid: number | null;
+  bid_count: number;
+  is_highest_bidder: boolean;
+}
 
 // Instagram-style product card for mobile
 function MobileProductCard({
@@ -24,23 +37,55 @@ function MobileProductCard({
   onAction,
   isLoading,
   locale,
+  auctionInfo,
+  onPlaceBid,
+  onRegisterBidder,
+  isRegisteredBidder = false,
+  bidError,
 }: {
   product: Product;
   onAction: () => void;
   isLoading: boolean;
   locale: 'he' | 'en';
+  auctionInfo?: AuctionInfo;
+  onPlaceBid?: (amount: number) => void;
+  onRegisterBidder?: () => void;
+  isRegisteredBidder?: boolean;
+  bidError?: string | null;
 }) {
+  const [bidAmount, setBidAmount] = useState('');
   const isRTL = locale === 'he';
   const isManualProduct = product.source === 'manual';
+  const isAuction = auctionInfo?.sale_type === 'auction';
+  const isAuctionActive = auctionInfo?.auction_status === 'active';
+  const isAuctionEnded = auctionInfo?.auction_status === 'ended';
 
   const t = {
     he: {
       buyNow: 'קנה עכשיו',
       addToCart: 'הוסף לסל',
+      auction: 'מכירה פומבית',
+      currentBid: 'הצעה נוכחית',
+      startingBid: 'הצעה פתיחה',
+      placeBid: 'הצע',
+      registerToBid: 'הירשם',
+      bids: 'הצעות',
+      youreWinning: 'אתה מוביל!',
+      auctionEnded: 'המכירה הסתיימה',
+      auctionPending: 'ממתין להתחלה',
     },
     en: {
       buyNow: 'Buy Now',
       addToCart: 'Add to Cart',
+      auction: 'Auction',
+      currentBid: 'Current Bid',
+      startingBid: 'Starting Bid',
+      placeBid: 'Bid',
+      registerToBid: 'Register',
+      bids: 'bids',
+      youreWinning: "You're winning!",
+      auctionEnded: 'Auction Ended',
+      auctionPending: 'Starting Soon',
     },
   }[locale];
 
@@ -51,6 +96,132 @@ function MobileProductCard({
     }).format(price);
   };
 
+  const getMinimumBid = () => {
+    if (!auctionInfo) return 0;
+    const currentBid = auctionInfo.current_bid || 0;
+    const startingPrice = auctionInfo.starting_price || 0;
+    const increment = auctionInfo.bid_increment || 1;
+    return currentBid > 0 ? currentBid + increment : startingPrice;
+  };
+
+  const handlePlaceBid = () => {
+    const amount = parseFloat(bidAmount);
+    if (amount >= getMinimumBid() && onPlaceBid) {
+      onPlaceBid(amount);
+      setBidAmount('');
+    }
+  };
+
+  // Auction UI
+  if (isAuction && auctionInfo) {
+    return (
+      <div
+        className="p-3 bg-black/70 backdrop-blur-md rounded-2xl border border-orange-500/30"
+        dir={isRTL ? 'rtl' : 'ltr'}
+      >
+        <div className="flex items-center gap-3">
+          {/* Product image */}
+          <div className="relative w-16 h-16 rounded-xl overflow-hidden bg-white/10 shrink-0">
+            {product.image_url ? (
+              <Image
+                src={product.image_url}
+                alt={product.title}
+                fill
+                className="object-cover"
+              />
+            ) : (
+              <div className="w-full h-full flex items-center justify-center text-white/40">
+                <svg className="w-6 h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                  <path
+                    strokeLinecap="round"
+                    strokeLinejoin="round"
+                    strokeWidth={1.5}
+                    d="M4 16l4.586-4.586a2 2 0 012.828 0L16 16m-2-2l1.586-1.586a2 2 0 012.828 0L20 14m-6-6h.01M6 20h12a2 2 0 002-2V6a2 2 0 00-2-2H6a2 2 0 00-2 2v12a2 2 0 002 2z"
+                  />
+                </svg>
+              </div>
+            )}
+            {/* Auction badge */}
+            <div className="absolute top-0.5 left-0.5 px-1.5 py-0.5 bg-orange-500 rounded text-[8px] text-white font-bold uppercase">
+              {t.auction}
+            </div>
+          </div>
+
+          {/* Product info */}
+          <div className="flex-1 min-w-0">
+            <h3 className="text-white font-medium text-sm leading-tight line-clamp-1">
+              {product.title}
+            </h3>
+            <div className="flex items-center gap-2 mt-1">
+              <span className="text-white/50 text-xs">
+                {auctionInfo.current_bid ? t.currentBid : t.startingBid}:
+              </span>
+              <span className="text-orange-400 font-bold text-base">
+                {formatPrice(
+                  auctionInfo.current_bid || auctionInfo.starting_price || 0,
+                  product.currency
+                )}
+              </span>
+            </div>
+            <div className="flex items-center gap-2 mt-0.5">
+              {auctionInfo.bid_count > 0 && (
+                <span className="text-white/50 text-xs">
+                  {auctionInfo.bid_count} {t.bids}
+                </span>
+              )}
+              {auctionInfo.is_highest_bidder && isAuctionActive && (
+                <span className="text-green-400 text-xs font-medium">
+                  {t.youreWinning}
+                </span>
+              )}
+            </div>
+          </div>
+
+          {/* Action area */}
+          <div className="shrink-0">
+            {!isRegisteredBidder ? (
+              <button
+                onClick={onRegisterBidder}
+                className="px-4 py-2 bg-orange-500 hover:bg-orange-600 active:bg-orange-700 text-white font-semibold text-sm rounded-full transition-colors"
+              >
+                {t.registerToBid}
+              </button>
+            ) : isAuctionActive ? (
+              <div className="flex items-center gap-2">
+                <input
+                  type="number"
+                  value={bidAmount}
+                  onChange={(e) => setBidAmount(e.target.value)}
+                  placeholder={getMinimumBid().toString()}
+                  className="w-20 bg-black/50 text-white text-sm rounded-lg px-2 py-2 border border-white/20 focus:outline-none focus:border-orange-500"
+                />
+                <button
+                  onClick={handlePlaceBid}
+                  disabled={isLoading || !bidAmount || parseFloat(bidAmount) < getMinimumBid()}
+                  className="px-4 py-2 bg-orange-500 hover:bg-orange-600 active:bg-orange-700 disabled:opacity-50 text-white font-semibold text-sm rounded-full transition-colors"
+                >
+                  {isLoading ? (
+                    <div className="w-5 h-5 border-2 border-white border-t-transparent rounded-full animate-spin" />
+                  ) : (
+                    t.placeBid
+                  )}
+                </button>
+              </div>
+            ) : (
+              <span className="text-white/50 text-sm">
+                {isAuctionEnded ? t.auctionEnded : t.auctionPending}
+              </span>
+            )}
+          </div>
+        </div>
+        {bidError && (
+          <p className="text-red-400 text-xs mt-2 text-center">{bidError}</p>
+        )}
+      </div>
+    );
+  }
+
+  // Regular product UI
   return (
     <div
       className="flex items-center gap-3 p-3 bg-black/70 backdrop-blur-md rounded-2xl border border-white/20"
@@ -194,6 +365,8 @@ export default function BrandEmbedPage() {
   const [showNamePrompt, setShowNamePrompt] = useState(false);
   const [nameInput, setNameInput] = useState('');
   const [showShareToast, setShowShareToast] = useState(false);
+  const [showBidderRegistration, setShowBidderRegistration] = useState(false);
+  const [dismissedWinIds, setDismissedWinIds] = useState<string[]>([]);
 
   // Find current/next show for this brand
   const { show, isLoading: showLoading } = useBrandShow(brandId);
@@ -203,6 +376,21 @@ export default function BrandEmbedPage() {
   const { viewerCount } = useViewerPresence(show?.id || '', show ? viewerId : '');
   const { messages, sendMessage } = useChatMessages(show?.id || '', viewerId);
   const { activePoll, hasVoted, submitVote } = useActivePoll(show?.id || '', viewerId);
+
+  // Auction hooks
+  const { isRegistered: isRegisteredBidder, register: registerBidder } = useBidderRegistration(show?.id || '', viewerId);
+  const {
+    currentBid,
+    bidCount,
+    isHighestBidder,
+    isPlacingBid,
+    bidError,
+    placeBid,
+  } = useAuction(activeProduct?.id || '', show?.id || '', viewerId);
+  const { wins } = useAuctionWins(show?.id || '', viewerId);
+
+  // Get the latest undismissed win
+  const latestWin = wins.find(w => !dismissedWinIds.includes(w.id));
 
   // Cart hook
   const {
@@ -289,6 +477,31 @@ export default function BrandEmbedPage() {
       setShowNamePrompt(false);
       setNameInput('');
     }
+  };
+
+  // Handle bidder registration
+  const handleRegisterBidder = async (name: string, email: string, phone?: string) => {
+    const bidder = await registerBidder(name, email, phone);
+    return !!bidder;
+  };
+
+  // Handle place bid
+  const handlePlaceBid = async (amount: number) => {
+    await placeBid(amount);
+  };
+
+  // Build auction info for MobileProductCard
+  const getAuctionInfo = (showProduct: ShowProduct) => {
+    if (showProduct.sale_type !== 'auction') return undefined;
+    return {
+      sale_type: showProduct.sale_type,
+      auction_status: showProduct.auction_status,
+      starting_price: showProduct.starting_price,
+      bid_increment: showProduct.bid_increment,
+      current_bid: currentBid,
+      bid_count: bidCount,
+      is_highest_bidder: isHighestBidder,
+    };
   };
 
   // Translations
@@ -521,8 +734,13 @@ export default function BrandEmbedPage() {
             <MobileProductCard
               product={activeProduct.product}
               onAction={() => handleProductAction(activeProduct.product!)}
-              isLoading={cartLoading}
+              isLoading={cartLoading || isPlacingBid}
               locale={locale}
+              auctionInfo={getAuctionInfo(activeProduct)}
+              onPlaceBid={handlePlaceBid}
+              onRegisterBidder={() => setShowBidderRegistration(true)}
+              isRegisteredBidder={isRegisteredBidder}
+              bidError={bidError}
             />
           </div>
         )}
@@ -601,6 +819,24 @@ export default function BrandEmbedPage() {
         isLoading={cartLoading}
         locale={locale}
       />
+
+      {/* Bidder Registration Modal */}
+      <BidderRegistration
+        isOpen={showBidderRegistration}
+        onClose={() => setShowBidderRegistration(false)}
+        onRegister={handleRegisterBidder}
+        locale={locale}
+      />
+
+      {/* Auction Winner Modal */}
+      {latestWin && (
+        <AuctionWinnerModal
+          winner={latestWin}
+          isOpen={true}
+          onClose={() => setDismissedWinIds(prev => [...prev, latestWin.id])}
+          locale={locale}
+        />
+      )}
     </div>
   );
 }
