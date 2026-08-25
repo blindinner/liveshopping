@@ -43,6 +43,7 @@ export function ProductCard({
 }: ProductCardProps) {
   const [isExpanded, setIsExpanded] = useState(true);
   const [bidAmount, setBidAmount] = useState('');
+  const [showCustomBid, setShowCustomBid] = useState(false);
   const isRTL = locale === 'he';
   const isManualProduct = product.source === 'manual';
   const isAuction = auctionInfo?.sale_type === 'auction';
@@ -58,6 +59,8 @@ export function ProductCard({
       currentBid: 'הצעה נוכחית',
       startingBid: 'הצעה פתיחה',
       placeBid: 'הגש הצעה',
+      quickBid: 'הצע',
+      customBid: 'יותר',
       registerToBid: 'הירשם להצעות',
       bids: 'הצעות',
       youreWinning: 'אתה מוביל!',
@@ -72,6 +75,8 @@ export function ProductCard({
       currentBid: 'Current Bid',
       startingBid: 'Starting Bid',
       placeBid: 'Place Bid',
+      quickBid: 'Bid',
+      customBid: 'More',
       registerToBid: 'Register to Bid',
       bids: 'bids',
       youreWinning: "You're winning!",
@@ -112,6 +117,14 @@ export function ProductCard({
     if (amount >= getMinimumBid() && onPlaceBid) {
       onPlaceBid(amount);
       setBidAmount('');
+      setShowCustomBid(false);
+    }
+  };
+
+  const handleQuickBid = () => {
+    if (onPlaceBid) {
+      onPlaceBid(getMinimumBid());
+      setShowCustomBid(false);
     }
   };
 
@@ -241,24 +254,44 @@ export function ProductCard({
                   </Button>
                 ) : isAuctionActive ? (
                   <>
-                    <div className="flex gap-1">
-                      <input
-                        type="number"
-                        value={bidAmount}
-                        onChange={(e) => setBidAmount(e.target.value)}
-                        placeholder={getMinimumBid().toString()}
-                        className="flex-1 bg-black/30 text-white text-xs rounded px-2 py-1.5 w-0 min-w-0 border border-white/10 focus:outline-none focus:border-orange-500"
-                      />
-                      <Button
-                        onClick={handlePlaceBid}
-                        isLoading={isLoading}
-                        size="sm"
-                        disabled={!bidAmount || parseFloat(bidAmount) < getMinimumBid()}
-                        className="text-xs bg-orange-500 hover:bg-orange-600 px-2"
-                      >
-                        {t.placeBid}
-                      </Button>
-                    </div>
+                    {/* Quick bid button */}
+                    <Button
+                      onClick={handleQuickBid}
+                      isLoading={isLoading}
+                      size="sm"
+                      className="w-full text-xs bg-orange-500 hover:bg-orange-600"
+                    >
+                      {t.quickBid} {formatPrice(getMinimumBid(), product.currency)}
+                    </Button>
+                    {/* Custom bid toggle */}
+                    <button
+                      onClick={() => setShowCustomBid(!showCustomBid)}
+                      className="w-full text-white/50 text-[10px] hover:text-white/70 underline"
+                    >
+                      {t.customBid}
+                    </button>
+                    {/* Custom bid input */}
+                    {showCustomBid && (
+                      <div className="flex gap-1">
+                        <input
+                          type="number"
+                          value={bidAmount}
+                          onChange={(e) => setBidAmount(e.target.value)}
+                          placeholder={(getMinimumBid() + (auctionInfo.bid_increment || 1)).toString()}
+                          min={getMinimumBid() + 1}
+                          className="flex-1 bg-black/30 text-white text-xs rounded px-2 py-1.5 w-0 min-w-0 border border-white/10 focus:outline-none focus:border-orange-500"
+                        />
+                        <Button
+                          onClick={handlePlaceBid}
+                          isLoading={isLoading}
+                          size="sm"
+                          disabled={!bidAmount || parseFloat(bidAmount) <= getMinimumBid()}
+                          className="text-xs bg-orange-500 hover:bg-orange-600 px-2"
+                        >
+                          {t.placeBid}
+                        </Button>
+                      </div>
+                    )}
                     {bidError && (
                       <p className="text-red-400 text-[10px] text-center">{bidError}</p>
                     )}

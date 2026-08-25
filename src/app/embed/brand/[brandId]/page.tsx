@@ -54,6 +54,7 @@ function MobileProductCard({
   bidError?: string | null;
 }) {
   const [bidAmount, setBidAmount] = useState('');
+  const [showCustomBid, setShowCustomBid] = useState(false);
   const isRTL = locale === 'he';
   const isManualProduct = product.source === 'manual';
   const isAuction = auctionInfo?.sale_type === 'auction';
@@ -68,11 +69,14 @@ function MobileProductCard({
       currentBid: 'הצעה נוכחית',
       startingBid: 'הצעה פתיחה',
       placeBid: 'הצע',
+      quickBid: 'הצע',
+      customBid: 'הצעה גבוהה יותר',
       registerToBid: 'הירשם',
       bids: 'הצעות',
       youreWinning: 'אתה מוביל!',
       auctionEnded: 'המכירה הסתיימה',
       auctionPending: 'ממתין להתחלה',
+      bidHigher: 'או הצע יותר:',
     },
     en: {
       buyNow: 'Buy Now',
@@ -81,11 +85,14 @@ function MobileProductCard({
       currentBid: 'Current Bid',
       startingBid: 'Starting Bid',
       placeBid: 'Bid',
+      quickBid: 'Bid',
+      customBid: 'Bid Higher',
       registerToBid: 'Register',
       bids: 'bids',
       youreWinning: "You're winning!",
       auctionEnded: 'Auction Ended',
       auctionPending: 'Starting Soon',
+      bidHigher: 'or bid more:',
     },
   }[locale];
 
@@ -109,6 +116,14 @@ function MobileProductCard({
     if (amount >= getMinimumBid() && onPlaceBid) {
       onPlaceBid(amount);
       setBidAmount('');
+      setShowCustomBid(false);
+    }
+  };
+
+  const handleQuickBid = () => {
+    if (onPlaceBid) {
+      onPlaceBid(getMinimumBid());
+      setShowCustomBid(false);
     }
   };
 
@@ -187,24 +202,27 @@ function MobileProductCard({
                 {t.registerToBid}
               </button>
             ) : isAuctionActive ? (
-              <div className="flex items-center gap-2">
-                <input
-                  type="number"
-                  value={bidAmount}
-                  onChange={(e) => setBidAmount(e.target.value)}
-                  placeholder={getMinimumBid().toString()}
-                  className="w-20 bg-black/50 text-white text-sm rounded-lg px-2 py-2 border border-white/20 focus:outline-none focus:border-orange-500"
-                />
+              <div className="flex flex-col items-end gap-1">
+                {/* Quick bid button - bids minimum amount */}
                 <button
-                  onClick={handlePlaceBid}
-                  disabled={isLoading || !bidAmount || parseFloat(bidAmount) < getMinimumBid()}
-                  className="px-4 py-2 bg-orange-500 hover:bg-orange-600 active:bg-orange-700 disabled:opacity-50 text-white font-semibold text-sm rounded-full transition-colors"
+                  onClick={handleQuickBid}
+                  disabled={isLoading}
+                  className="px-4 py-2 bg-orange-500 hover:bg-orange-600 active:bg-orange-700 disabled:opacity-50 text-white font-semibold text-sm rounded-full transition-colors flex items-center gap-1"
                 >
                   {isLoading ? (
-                    <div className="w-5 h-5 border-2 border-white border-t-transparent rounded-full animate-spin" />
+                    <div className="w-4 h-4 border-2 border-white border-t-transparent rounded-full animate-spin" />
                   ) : (
-                    t.placeBid
+                    <>
+                      {t.quickBid} {formatPrice(getMinimumBid(), product.currency)}
+                    </>
                   )}
+                </button>
+                {/* Toggle for custom higher bid */}
+                <button
+                  onClick={() => setShowCustomBid(!showCustomBid)}
+                  className="text-white/60 text-xs hover:text-white/80 underline"
+                >
+                  {t.customBid}
                 </button>
               </div>
             ) : (
@@ -214,6 +232,29 @@ function MobileProductCard({
             )}
           </div>
         </div>
+
+        {/* Custom bid input - expandable */}
+        {isRegisteredBidder && isAuctionActive && showCustomBid && (
+          <div className="mt-2 flex items-center gap-2 justify-end">
+            <span className="text-white/50 text-xs">{t.bidHigher}</span>
+            <input
+              type="number"
+              value={bidAmount}
+              onChange={(e) => setBidAmount(e.target.value)}
+              placeholder={(getMinimumBid() + (auctionInfo?.bid_increment || 1)).toString()}
+              min={getMinimumBid() + 1}
+              className="w-24 bg-black/50 text-white text-sm rounded-lg px-2 py-1.5 border border-white/20 focus:outline-none focus:border-orange-500"
+            />
+            <button
+              onClick={handlePlaceBid}
+              disabled={isLoading || !bidAmount || parseFloat(bidAmount) <= getMinimumBid()}
+              className="px-3 py-1.5 bg-orange-500 hover:bg-orange-600 active:bg-orange-700 disabled:opacity-50 text-white font-semibold text-xs rounded-full transition-colors"
+            >
+              {t.placeBid}
+            </button>
+          </div>
+        )}
+
         {bidError && (
           <p className="text-red-400 text-xs mt-2 text-center">{bidError}</p>
         )}
