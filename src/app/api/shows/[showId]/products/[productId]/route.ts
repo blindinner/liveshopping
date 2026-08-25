@@ -33,7 +33,7 @@ export async function PATCH(
       const serviceClient = createServiceClient();
 
       // Get highest bid for this auction
-      const { data: highestBid } = await serviceClient
+      const { data: highestBid, error: bidError } = await serviceClient
         .from('bids')
         .select(`
           *,
@@ -44,12 +44,18 @@ export async function PATCH(
         .limit(1)
         .single();
 
+      if (bidError) {
+        console.log('No bids found for auction:', productId, bidError);
+      }
+
       if (highestBid) {
+        console.log('Highest bid found:', highestBid.amount, 'by bidder:', highestBid.bidder_id);
+
         // Set winner on show_product
         updates.winner_bidder_id = highestBid.bidder_id;
 
         // Create auction winner record
-        await serviceClient
+        const { data: winnerRecord, error: winnerError } = await serviceClient
           .from('auction_winners')
           .upsert({
             show_product_id: productId,
@@ -58,7 +64,15 @@ export async function PATCH(
             payment_status: 'pending',
           }, {
             onConflict: 'show_product_id',
-          });
+          })
+          .select()
+          .single();
+
+        if (winnerError) {
+          console.error('Failed to create winner record:', winnerError);
+        } else {
+          console.log('Winner record created:', winnerRecord);
+        }
 
         // Track analytics event
         await serviceClient

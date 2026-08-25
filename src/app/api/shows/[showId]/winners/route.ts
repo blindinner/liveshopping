@@ -13,7 +13,20 @@ export async function GET(
 
     const serviceClient = createServiceClient();
 
-    // Get all winners for this show with related data
+    // First, get all show_product IDs for this show
+    const { data: showProducts } = await serviceClient
+      .from('show_products')
+      .select('id')
+      .eq('show_id', showId)
+      .eq('sale_type', 'auction');
+
+    if (!showProducts || showProducts.length === 0) {
+      return NextResponse.json({ winners: [] });
+    }
+
+    const showProductIds = showProducts.map(sp => sp.id);
+
+    // Now get winners for these show_products
     let query = serviceClient
       .from('auction_winners')
       .select(`
@@ -24,7 +37,7 @@ export async function GET(
           product:products(*)
         )
       `)
-      .eq('show_product.show_id', showId);
+      .in('show_product_id', showProductIds);
 
     // If viewer_id provided, filter to just their wins
     if (viewerId) {
@@ -45,13 +58,11 @@ export async function GET(
     const { data: winners, error } = await query.order('created_at', { ascending: false });
 
     if (error) {
+      console.error('Winners query error:', error);
       throw error;
     }
 
-    // Filter out null show_products (from the join filter)
-    const validWinners = (winners || []).filter(w => w.show_product !== null);
-
-    return NextResponse.json({ winners: validWinners });
+    return NextResponse.json({ winners: winners || [] });
   } catch (error) {
     console.error('Get winners error:', error);
     return NextResponse.json(

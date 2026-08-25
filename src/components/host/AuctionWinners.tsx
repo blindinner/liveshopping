@@ -1,6 +1,7 @@
 'use client';
 
 import { useEffect, useState } from 'react';
+import { createClient } from '@/lib/supabase/client';
 import type { Bidder, Product } from '@/types/database';
 
 interface BidWithBidder {
@@ -47,6 +48,28 @@ export function AuctionWinners({ showId }: AuctionWinnersProps) {
 
   useEffect(() => {
     loadWinners();
+
+    // Subscribe to auction_winners changes for real-time updates
+    const supabase = createClient();
+    const channel = supabase
+      .channel(`auction-winners:${showId}`)
+      .on(
+        'postgres_changes',
+        {
+          event: '*',
+          schema: 'public',
+          table: 'auction_winners',
+        },
+        () => {
+          // Reload winners when any change occurs
+          loadWinners();
+        }
+      )
+      .subscribe();
+
+    return () => {
+      supabase.removeChannel(channel);
+    };
   }, [showId]);
 
   const loadWinners = async () => {
