@@ -10,6 +10,7 @@ import { BroadcastPanel } from '@/components/host/BroadcastPanel';
 import { HostNotes } from '@/components/host/HostNotes';
 import { PollManager } from '@/components/host/PollManager';
 import { AuctionControl } from '@/components/host/AuctionControl';
+import { AuctionWinners } from '@/components/host/AuctionWinners';
 import { useChatMessages, useShowStatus, useViewerPresence } from '@/hooks/useRealtime';
 import { createClient } from '@/lib/supabase/client';
 import type { Show, ShowProduct, ChatMessage } from '@/types/database';
@@ -242,6 +243,9 @@ export default function HostControlPanel() {
           onAuctionUpdate={handleAuctionUpdate}
         />
       )}
+
+      {/* Auction Winners - shows completed auctions */}
+      <AuctionWinners showId={showId} />
 
       {/* Poll Manager */}
       <PollManager showId={showId} />

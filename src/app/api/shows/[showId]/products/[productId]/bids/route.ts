@@ -14,7 +14,7 @@ export async function GET(
       .from('bids')
       .select(`
         *,
-        bidder:bidders(id, name, viewer_id)
+        bidder:bidders(id, name, email, phone, viewer_id)
       `)
       .eq('show_product_id', productId)
       .order('amount', { ascending: false });

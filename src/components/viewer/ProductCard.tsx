@@ -270,14 +270,14 @@ export function ProductCard({
                     >
                       {t.customBid}
                     </button>
-                    {/* Custom bid input */}
+                    {/* Custom bid input - must be higher than quick bid */}
                     {showCustomBid && (
                       <div className="flex gap-1">
                         <input
                           type="number"
                           value={bidAmount}
                           onChange={(e) => setBidAmount(e.target.value)}
-                          placeholder={(getMinimumBid() + (auctionInfo.bid_increment || 1)).toString()}
+                          placeholder={(getMinimumBid() + 1).toString()}
                           min={getMinimumBid() + 1}
                           className="flex-1 bg-black/30 text-white text-xs rounded px-2 py-1.5 w-0 min-w-0 border border-white/10 focus:outline-none focus:border-orange-500"
                         />

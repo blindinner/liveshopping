@@ -544,8 +544,8 @@ export default function EmbedLiveViewerPage() {
 
       {/* Bottom section - Product card (Instagram-style) */}
       <div className="shrink-0 p-3 pb-safe space-y-2">
-        {/* Product card */}
-        {activeProduct?.product && (
+        {/* Product card - hide when auction ended */}
+        {activeProduct?.product && activeProduct.auction_status !== 'ended' && (
           <MobileProductCard
             product={activeProduct.product}
             onAction={() => handleProductAction(activeProduct.product!)}

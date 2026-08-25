@@ -233,7 +233,7 @@ function MobileProductCard({
           </div>
         </div>
 
-        {/* Custom bid input - expandable */}
+        {/* Custom bid input - expandable, must be higher than quick bid */}
         {isRegisteredBidder && isAuctionActive && showCustomBid && (
           <div className="mt-2 flex items-center gap-2 justify-end">
             <span className="text-white/50 text-xs">{t.bidHigher}</span>
@@ -241,7 +241,7 @@ function MobileProductCard({
               type="number"
               value={bidAmount}
               onChange={(e) => setBidAmount(e.target.value)}
-              placeholder={(getMinimumBid() + (auctionInfo?.bid_increment || 1)).toString()}
+              placeholder={(getMinimumBid() + 1).toString()}
               min={getMinimumBid() + 1}
               className="w-24 bg-black/50 text-white text-sm rounded-lg px-2 py-1.5 border border-white/20 focus:outline-none focus:border-orange-500"
             />
@@ -769,8 +769,8 @@ export default function BrandEmbedPage() {
 
       {/* Bottom overlays - Product card, checkout, and chat */}
       <div className="absolute bottom-0 left-0 right-0 z-20 pointer-events-none flex flex-col">
-        {/* Product card - only shows when product is featured */}
-        {activeProduct?.product && (
+        {/* Product card - only shows when product is featured and auction not ended */}
+        {activeProduct?.product && activeProduct.auction_status !== 'ended' && (
           <div className="px-3 pb-2 pointer-events-auto">
             <MobileProductCard
               product={activeProduct.product}

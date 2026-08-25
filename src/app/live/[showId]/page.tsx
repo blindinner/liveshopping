@@ -251,8 +251,8 @@ export default function LiveViewerPage() {
         }}
       />
 
-      {/* Active product card - only shows when host features a product */}
-      {activeProduct?.product && (
+      {/* Active product card - only shows when host features a product and auction not ended */}
+      {activeProduct?.product && activeProduct.auction_status !== 'ended' && (
         <ProductCard
           product={activeProduct.product}
           onAddToCart={() => handleAddToCart(activeProduct)}
