@@ -15,12 +15,14 @@ export function InvitationManager({ showId }: InvitationManagerProps) {
     isLoading,
     addInvitations,
     removeInvitation,
+    resendInvitation,
     copyInviteLink,
   } = useInvitations(showId);
 
   const [emailInput, setEmailInput] = useState('');
   const [isAdding, setIsAdding] = useState(false);
   const [copiedId, setCopiedId] = useState<string | null>(null);
+  const [resendingId, setResendingId] = useState<string | null>(null);
   const [feedback, setFeedback] = useState<{ type: 'success' | 'error'; message: string } | null>(null);
 
   const handleAddInvitations = async (e: React.FormEvent) => {
@@ -76,6 +78,19 @@ export function InvitationManager({ showId }: InvitationManagerProps) {
       await removeInvitation(invitationId);
     } catch {
       // Error handled by hook
+    }
+  };
+
+  const handleResend = async (invitationId: string) => {
+    setResendingId(invitationId);
+    try {
+      await resendInvitation(invitationId);
+      setFeedback({ type: 'success', message: 'Email sent!' });
+      setTimeout(() => setFeedback(null), 3000);
+    } catch {
+      setFeedback({ type: 'error', message: 'Failed to send email' });
+    } finally {
+      setResendingId(null);
     }
   };
 
@@ -186,21 +201,39 @@ export function InvitationManager({ showId }: InvitationManagerProps) {
                   {getStatusBadge(invitation.status)}
 
                   {invitation.status === 'pending' && (
-                    <button
-                      onClick={() => handleCopyLink(invitation)}
-                      className="p-1.5 rounded-lg hover:bg-white/10 transition-colors"
-                      title="Copy invite link"
-                    >
-                      {copiedId === invitation.id ? (
-                        <svg className="w-4 h-4 text-green-400" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                          <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M5 13l4 4L19 7" />
-                        </svg>
-                      ) : (
-                        <svg className="w-4 h-4 text-white/60" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                          <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M8 5H6a2 2 0 00-2 2v12a2 2 0 002 2h10a2 2 0 002-2v-1M8 5a2 2 0 002 2h2a2 2 0 002-2M8 5a2 2 0 012-2h2a2 2 0 012 2m0 0h2a2 2 0 012 2v3m2 4H10m0 0l3-3m-3 3l3 3" />
-                        </svg>
-                      )}
-                    </button>
+                    <>
+                      {/* Resend email button */}
+                      <button
+                        onClick={() => handleResend(invitation.id)}
+                        disabled={resendingId === invitation.id}
+                        className="p-1.5 rounded-lg hover:bg-white/10 transition-colors disabled:opacity-50"
+                        title={invitation.sent_at ? 'Resend email' : 'Send email'}
+                      >
+                        {resendingId === invitation.id ? (
+                          <div className="w-4 h-4 border-2 border-white/60 border-t-transparent rounded-full animate-spin" />
+                        ) : (
+                          <svg className="w-4 h-4 text-white/60" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                            <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M3 8l7.89 5.26a2 2 0 002.22 0L21 8M5 19h14a2 2 0 002-2V7a2 2 0 00-2-2H5a2 2 0 00-2 2v10a2 2 0 002 2z" />
+                          </svg>
+                        )}
+                      </button>
+                      {/* Copy link button */}
+                      <button
+                        onClick={() => handleCopyLink(invitation)}
+                        className="p-1.5 rounded-lg hover:bg-white/10 transition-colors"
+                        title="Copy invite link"
+                      >
+                        {copiedId === invitation.id ? (
+                          <svg className="w-4 h-4 text-green-400" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                            <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M5 13l4 4L19 7" />
+                          </svg>
+                        ) : (
+                          <svg className="w-4 h-4 text-white/60" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                            <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M8 5H6a2 2 0 00-2 2v12a2 2 0 002 2h10a2 2 0 002-2v-1M8 5a2 2 0 002 2h2a2 2 0 002-2M8 5a2 2 0 012-2h2a2 2 0 012 2m0 0h2a2 2 0 012 2v3m2 4H10m0 0l3-3m-3 3l3 3" />
+                          </svg>
+                        )}
+                      </button>
+                    </>
                   )}
 
                   <button

@@ -1,6 +1,8 @@
 import { NextResponse } from 'next/server';
+import { headers } from 'next/headers';
 import { createClient, createServiceClient } from '@/lib/supabase/server';
 import { randomBytes } from 'crypto';
+import { sendInvitationEmail } from '@/lib/email/send';
 
 // Generate a secure invite token (43 chars, base64url)
 function generateInviteToken(): string {
@@ -133,10 +135,54 @@ export async function POST(
       throw error;
     }
 
+    // Get show details for email
+    const { data: show } = await serviceClient
+      .from('shows')
+      .select('title, scheduled_at')
+      .eq('id', showId)
+      .single();
+
+    // Send invitation emails (don't block on failures)
+    const headersList = await headers();
+    const host = headersList.get('host') || 'localhost:3000';
+    const protocol = host.includes('localhost') ? 'http' : 'https';
+    const baseUrl = `${protocol}://${host}`;
+
+    let emailsSent = 0;
+    let emailsFailed = 0;
+
+    if (show && invitations) {
+      const emailPromises = invitations.map(async (invitation) => {
+        const result = await sendInvitationEmail({
+          to: invitation.email,
+          showTitle: show.title,
+          showDate: new Date(show.scheduled_at),
+          inviteToken: invitation.invite_token,
+          baseUrl,
+        });
+
+        if (result.success) {
+          // Update sent_at timestamp
+          await serviceClient
+            .from('invitations')
+            .update({ sent_at: new Date().toISOString() })
+            .eq('id', invitation.id);
+          emailsSent++;
+        } else {
+          console.error(`Failed to send email to ${invitation.email}:`, result.error);
+          emailsFailed++;
+        }
+      });
+
+      await Promise.all(emailPromises);
+    }
+
     return NextResponse.json({
       invitations,
       created: invitations?.length || 0,
       skipped: normalizedEmails.length - newEmails.length,
+      emailsSent,
+      emailsFailed,
     });
   } catch (error) {
     console.error('Create invitations error:', error);

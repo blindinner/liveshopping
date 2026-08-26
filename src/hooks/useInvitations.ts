@@ -97,6 +97,25 @@ export function useInvitations(showId: string) {
     }
   }, [showId]);
 
+  // Resend invitation email
+  const resendInvitation = useCallback(async (invitationId: string): Promise<void> => {
+    try {
+      const response = await fetch(`/api/shows/${showId}/invitations/${invitationId}`, {
+        method: 'PATCH',
+      });
+
+      if (!response.ok) {
+        const error = await response.json();
+        throw new Error(error.error || 'Failed to resend invitation');
+      }
+      // Refresh to get updated sent_at
+      fetchInvitations();
+    } catch (err) {
+      console.error('Resend invitation error:', err);
+      throw err;
+    }
+  }, [showId, fetchInvitations]);
+
   // Get invite URL
   const getInviteUrl = useCallback((invitation: Invitation): string => {
     if (typeof window === 'undefined') return '';
@@ -115,6 +134,7 @@ export function useInvitations(showId: string) {
     error,
     addInvitations,
     removeInvitation,
+    resendInvitation,
     getInviteUrl,
     copyInviteLink,
     refresh: fetchInvitations,
