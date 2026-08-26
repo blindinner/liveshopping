@@ -7,7 +7,8 @@ import { useRouter, useSearchParams } from 'next/navigation';
 import { Button } from '@/components/ui/Button';
 import { Input } from '@/components/ui/Input';
 import { Badge } from '@/components/ui/Badge';
-import type { Show } from '@/types/database';
+import { ShowTypeToggle } from '@/components/host/ShowTypeToggle';
+import type { Show, AuctionType } from '@/types/database';
 
 const CLOUDFLARE_SUBDOMAIN = process.env.NEXT_PUBLIC_CLOUDFLARE_ACCOUNT_ID || 'f83anpt0jiknxr1e';
 
@@ -46,6 +47,7 @@ function LiveShoppingContent() {
   const [isCreating, setIsCreating] = useState(false);
   const [newShowTitle, setNewShowTitle] = useState('');
   const [newShowDate, setNewShowDate] = useState('');
+  const [newShowType, setNewShowType] = useState<AuctionType>('public');
   const [brandId, setBrandId] = useState<string | null>(null);
   const [justInstalled, setJustInstalled] = useState(false);
   const router = useRouter();
@@ -94,6 +96,7 @@ function LiveShoppingContent() {
           title: newShowTitle,
           scheduledAt: new Date(newShowDate).toISOString(),
           brandId,
+          auctionType: newShowType,
         }),
       });
 
@@ -169,6 +172,7 @@ function LiveShoppingContent() {
               dir="ltr"
             />
           </div>
+          <ShowTypeToggle value={newShowType} onChange={setNewShowType} />
           <Button
             type="submit"
             isLoading={isCreating}

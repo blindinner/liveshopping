@@ -1,6 +1,6 @@
 'use client';
 
-import { useEffect, useState, useCallback } from 'react';
+import { useEffect, useState, useCallback, Suspense } from 'react';
 import { VideoPlayer } from '@/components/viewer/VideoPlayer';
 import { Chat } from '@/components/viewer/Chat';
 import { Reactions } from '@/components/viewer/Reactions';
@@ -23,16 +23,39 @@ import {
 import { useCart } from '@/hooks/useCart';
 import { useActivePoll } from '@/hooks/usePolls';
 import { useBidderRegistration, useAuction, useAuctionWins } from '@/hooks/useAuction';
+import { usePrivateShowAccess } from '@/hooks/usePrivateShowAccess';
+import { PrivateShowAccessDenied } from '@/components/viewer/PrivateShowAccessDenied';
 import type { ShowProduct } from '@/types/database';
-import { useParams } from 'next/navigation';
+import { useParams, useSearchParams } from 'next/navigation';
 
-export default function LiveViewerPage() {
+function LiveViewerContent() {
   const params = useParams();
+  const searchParams = useSearchParams();
   const showId = params.showId as string;
+  const token = searchParams.get('token');
   const locale = 'en' as const;
 
-  // Generate viewer ID (persisted in memory for the session)
-  const [viewerId] = useState(() => `viewer-${Date.now()}-${Math.random().toString(36).slice(2)}`);
+  // Private show access control
+  const {
+    isAuthorized: isPrivateAuthorized,
+    isValidating: isPrivateValidating,
+    viewerId: invitedViewerId,
+    guestProfile,
+  } = usePrivateShowAccess(showId, token);
+
+  // Generate viewer ID (use invited ID for private shows, or generate one for public)
+  const [generatedViewerId] = useState(() => `viewer-${Date.now()}-${Math.random().toString(36).slice(2)}`);
+
+  // Real-time hooks - need show first to determine private/public
+  const { show, isLoading: showLoading } = useShowStatus(showId);
+
+  // Determine effective viewer ID based on show type
+  const isPrivateShow = show?.auction_type === 'private';
+  const viewerId = isPrivateShow && invitedViewerId ? invitedViewerId : generatedViewerId;
+
+  // For private shows with accepted invitations, bidder is already registered
+  const isPreRegisteredBidder = isPrivateShow && isPrivateAuthorized && !!invitedViewerId;
+
   // TODO: Re-enable lead capture form after testing
   const [viewerName, setViewerName] = useState<string | null>('Guest');
   const [showLeadForm, setShowLeadForm] = useState(false);
@@ -41,8 +64,12 @@ export default function LiveViewerPage() {
   const [showBidderRegistration, setShowBidderRegistration] = useState(false);
   const [dismissedWinIds, setDismissedWinIds] = useState<string[]>([]);
 
-  // Real-time hooks
-  const { show, isLoading: showLoading } = useShowStatus(showId);
+  // Update viewer name from guest profile for private shows
+  useEffect(() => {
+    if (guestProfile?.name) {
+      setViewerName(guestProfile.name);
+    }
+  }, [guestProfile]);
   const { messages, sendMessage } = useChatMessages(showId, viewerId);
   const { activeProduct } = useShowProducts(showId);
   const { viewerCount } = useViewerPresence(showId, viewerId);
@@ -155,12 +182,17 @@ export default function LiveViewerPage() {
   };
 
 
-  if (showLoading || !show) {
+  if (showLoading || !show || (isPrivateShow && isPrivateValidating)) {
     return (
       <div className="fixed inset-0 bg-black flex items-center justify-center">
         <div className="animate-spin w-8 h-8 border-2 border-white border-t-transparent rounded-full" />
       </div>
     );
+  }
+
+  // Access control for private shows
+  if (isPrivateShow && !isPrivateAuthorized) {
+    return <PrivateShowAccessDenied showTitle={show.title} />;
   }
 
   // Pre-show state (scheduled)
@@ -261,7 +293,7 @@ export default function LiveViewerPage() {
           auctionInfo={getAuctionInfo(activeProduct)}
           onPlaceBid={handlePlaceBid}
           onRegisterBidder={() => setShowBidderRegistration(true)}
-          isRegisteredBidder={isRegisteredBidder}
+          isRegisteredBidder={isRegisteredBidder || isPreRegisteredBidder}
           bidError={bidError}
         />
       )}
@@ -378,5 +410,17 @@ export default function LiveViewerPage() {
 
       {/* TODO: Re-enable lead capture form after testing */}
     </div>
+  );
+}
+
+export default function LiveViewerPage() {
+  return (
+    <Suspense fallback={
+      <div className="fixed inset-0 bg-black flex items-center justify-center">
+        <div className="animate-spin w-8 h-8 border-2 border-white border-t-transparent rounded-full" />
+      </div>
+    }>
+      <LiveViewerContent />
+    </Suspense>
   );
 }

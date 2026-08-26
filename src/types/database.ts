@@ -2,6 +2,8 @@
 
 export type ShowStatus = 'scheduled' | 'live' | 'ended';
 
+export type AuctionType = 'public' | 'private';
+
 export type PlatformType = 'shopify' | 'woocommerce' | 'bigcommerce' | 'magento';
 
 export interface Brand {
@@ -21,6 +23,7 @@ export interface Show {
   title: string;
   scheduled_at: string;
   status: ShowStatus;
+  auction_type: AuctionType;
   cloudflare_stream_id: string | null;
   cloudflare_playback_id: string | null;
   cloudflare_webrtc_url: string | null; // Host-only - WHIP URL for browser streaming
@@ -172,6 +175,43 @@ export interface PollWithResults extends Poll {
   viewer_vote?: string; // option_id the current viewer voted for
 }
 
+// Guest profile for private auctions (persistent across shows)
+export interface GuestProfile {
+  id: string;
+  email: string;
+  name: string;
+  phone: string | null;
+  company_name: string | null;
+  vat_number: string | null;
+  is_business: boolean;
+  billing_address: string | null;
+  billing_city: string | null;
+  billing_postal_code: string | null;
+  billing_country: string | null;
+  created_at: string;
+  updated_at: string;
+}
+
+// Invitation status for private auctions
+export type InvitationStatus = 'pending' | 'accepted' | 'declined';
+
+// Invitation for private auctions
+export interface Invitation {
+  id: string;
+  show_id: string;
+  guest_profile_id: string | null;
+  email: string;
+  invite_token: string;
+  status: InvitationStatus;
+  sent_at: string | null;
+  accepted_at: string | null;
+  declined_at: string | null;
+  created_at: string;
+  // Joined data
+  guest_profile?: GuestProfile;
+  show?: Show;
+}
+
 // Bidder types
 export interface Bidder {
   id: string;
@@ -181,7 +221,10 @@ export interface Bidder {
   email: string;
   phone: string | null;
   approved: boolean;
+  invitation_id: string | null;
   created_at: string;
+  // Joined data
+  invitation?: Invitation;
 }
 
 export interface Bid {

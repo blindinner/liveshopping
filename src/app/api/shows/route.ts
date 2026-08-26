@@ -106,7 +106,7 @@ export async function POST(request: Request) {
       return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
     }
 
-    const { title, scheduledAt, brandId } = await request.json();
+    const { title, scheduledAt, brandId, auctionType } = await request.json();
 
     if (!title || !scheduledAt || !brandId) {
       return NextResponse.json(
@@ -126,6 +126,7 @@ export async function POST(request: Request) {
         title,
         scheduled_at: scheduledAt,
         status: 'scheduled',
+        auction_type: auctionType || 'public',
         cloudflare_stream_id: cloudflareInput.uid,
         cloudflare_playback_id: cloudflareInput.uid,
         cloudflare_webrtc_url: cloudflareInput.webRtcUrl,
