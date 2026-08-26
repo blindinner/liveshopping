@@ -1,5 +1,7 @@
 import { NextResponse } from 'next/server';
+import { headers } from 'next/headers';
 import { createServiceClient } from '@/lib/supabase/server';
+import { sendConfirmationEmail } from '@/lib/email/send';
 
 // GET /api/invitations/[token] - Validate token and get invitation details
 export async function GET(
@@ -187,6 +189,33 @@ export async function POST(
     if (bidderError) {
       console.error('Create bidder error:', bidderError);
       throw bidderError;
+    }
+
+    // Fetch show details for confirmation email
+    const { data: show } = await serviceClient
+      .from('shows')
+      .select('title, scheduled_at')
+      .eq('id', invitation.show_id)
+      .single();
+
+    // Send confirmation email (don't block on failure)
+    if (show) {
+      const headersList = await headers();
+      const host = headersList.get('host') || 'localhost:3000';
+      const protocol = host.includes('localhost') ? 'http' : 'https';
+      const baseUrl = `${protocol}://${host}`;
+
+      sendConfirmationEmail({
+        to: invitation.email,
+        recipientName: name,
+        showTitle: show.title,
+        showDate: new Date(show.scheduled_at),
+        showId: invitation.show_id,
+        inviteToken: token,
+        baseUrl,
+      }).catch((err) => {
+        console.error('Failed to send confirmation email:', err);
+      });
     }
 
     return NextResponse.json({

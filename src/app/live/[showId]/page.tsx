@@ -197,13 +197,95 @@ function LiveViewerContent() {
 
   // Pre-show state (scheduled)
   if (show.status === 'scheduled') {
+    const formatDate = (date: string) => {
+      return new Intl.DateTimeFormat('en-US', {
+        weekday: 'long',
+        year: 'numeric',
+        month: 'long',
+        day: 'numeric',
+        hour: '2-digit',
+        minute: '2-digit',
+      }).format(new Date(date));
+    };
+
+    const getCalendarUrl = () => {
+      const startDate = new Date(show.scheduled_at);
+      const endDate = new Date(startDate.getTime() + 60 * 60 * 1000);
+      const formatCalendarDate = (date: Date) => {
+        return date.toISOString().replace(/[-:]/g, '').replace(/\\.\\d{3}/, '');
+      };
+      const joinUrl = typeof window !== 'undefined'
+        ? `${window.location.origin}/live/${show.id}${token ? `?token=${token}` : ''}`
+        : '';
+      const params = new URLSearchParams({
+        action: 'TEMPLATE',
+        text: `${isPrivateShow ? 'Private Auction' : 'Live Show'}: ${show.title}`,
+        dates: `${formatCalendarDate(startDate)}/${formatCalendarDate(endDate)}`,
+        details: `Join the live show here: ${joinUrl}`,
+      });
+      return `https://calendar.google.com/calendar/render?${params.toString()}`;
+    };
+
+    const personalizedName = guestProfile?.name || viewerName;
+    const showPersonalizedGreeting = isPrivateShow && isPrivateAuthorized && personalizedName && personalizedName !== 'Guest';
+
     return (
       <div className="fixed inset-0 bg-gradient-to-b from-gray-900 to-black flex flex-col items-center justify-center p-6">
-        <h1 className="text-2xl font-bold text-white mb-2">{show.title}</h1>
-        <div className="mt-8 mb-12">
-          <Countdown targetDate={new Date(show.scheduled_at)} locale={locale} />
+        <div className="max-w-md w-full text-center">
+          {/* Personalized greeting for invited guests */}
+          {showPersonalizedGreeting && (
+            <div className="mb-6">
+              <div className="w-16 h-16 mx-auto mb-4 rounded-full bg-pink-500/20 flex items-center justify-center">
+                <span className="text-2xl font-bold text-pink-400">
+                  {personalizedName.charAt(0).toUpperCase()}
+                </span>
+              </div>
+              <p className="text-white/60 text-lg">
+                Welcome back, <span className="text-white font-medium">{personalizedName}</span>
+              </p>
+            </div>
+          )}
+
+          {/* Show title and date */}
+          <h1 className="text-2xl font-bold text-white mb-2">{show.title}</h1>
+          <p className="text-white/60 text-sm mb-8">{formatDate(show.scheduled_at)}</p>
+
+          {/* Private show badge */}
+          {isPrivateShow && (
+            <div className="inline-flex items-center gap-2 px-3 py-1.5 bg-amber-500/20 border border-amber-500/30 rounded-full mb-6">
+              <svg className="w-4 h-4 text-amber-400" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 15v2m-6 4h12a2 2 0 002-2v-6a2 2 0 00-2-2H6a2 2 0 00-2 2v6a2 2 0 002 2zm10-10V7a4 4 0 00-8 0v4h8z" />
+              </svg>
+              <span className="text-amber-400 text-sm font-medium">Private Auction</span>
+            </div>
+          )}
+
+          {/* Countdown */}
+          <div className="mb-8">
+            <Countdown targetDate={new Date(show.scheduled_at)} locale={locale} />
+          </div>
+
+          {/* Actions */}
+          <div className="space-y-3">
+            <a
+              href={getCalendarUrl()}
+              target="_blank"
+              rel="noopener noreferrer"
+              className="flex items-center justify-center gap-2 w-full px-6 py-3 bg-white/10 hover:bg-white/15 border border-white/20 rounded-xl text-white font-medium transition-colors"
+            >
+              <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M8 7V3m8 4V3m-9 8h10M5 21h14a2 2 0 002-2V7a2 2 0 00-2-2H5a2 2 0 00-2 2v12a2 2 0 002 2z" />
+              </svg>
+              Add to Calendar
+            </a>
+
+            {isPrivateShow && isPrivateAuthorized && (
+              <p className="text-white/40 text-xs mt-4">
+                You're registered and ready to bid when the show starts
+              </p>
+            )}
+          </div>
         </div>
-        {/* TODO: Re-enable lead capture form after testing */}
       </div>
     );
   }

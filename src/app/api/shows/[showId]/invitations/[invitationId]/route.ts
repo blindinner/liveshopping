@@ -52,6 +52,7 @@ export async function PATCH(
       to: invitation.email,
       showTitle: show.title,
       showDate: new Date(show.scheduled_at),
+      showId,
       inviteToken: invitation.invite_token,
       baseUrl,
     });
