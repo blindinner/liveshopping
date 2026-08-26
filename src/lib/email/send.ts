@@ -1,7 +1,7 @@
 import { resend } from './client';
 import { getInvitationEmailHtml, getInvitationEmailText } from './templates';
 
-const FROM_EMAIL = 'benji@shopablevids.com';
+const FROM_EMAIL = process.env.RESEND_FROM_EMAIL || 'benji@shoppablevids.com';
 const FROM_NAME = 'Shoppable Vids';
 
 interface SendInvitationEmailParams {
