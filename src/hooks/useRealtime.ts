@@ -329,7 +329,7 @@ export function useShowStatus(showId: string) {
     async function loadShow() {
       const { data } = await supabase
         .from('shows')
-        .select('*, brand:brands(shopify_domain)')
+        .select('*, brand:brands_public(shopify_domain)')
         .eq('id', showId)
         .single();
 
