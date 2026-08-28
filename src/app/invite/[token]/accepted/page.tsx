@@ -101,10 +101,14 @@ export default function InvitationAcceptedPage() {
 
   const getJoinUrl = () => {
     if (!data) return '';
-    // Use embed_url if configured, otherwise use our domain
-    if (data.show.embed_url) {
+    // Priority: show.embed_url > brand.website_url > brand.shopify_domain > our domain
+    const effectiveEmbedUrl = data.show.embed_url
+      || data.show._brandWebsiteUrl
+      || (data.show._brandDomain ? `https://${data.show._brandDomain}` : null);
+
+    if (effectiveEmbedUrl) {
       // Append token to embed URL
-      const url = new URL(data.show.embed_url);
+      const url = new URL(effectiveEmbedUrl);
       url.searchParams.set('token', token);
       return url.toString();
     }

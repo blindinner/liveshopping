@@ -329,17 +329,18 @@ export function useShowStatus(showId: string) {
     async function loadShow() {
       const { data } = await supabase
         .from('shows')
-        .select('*, brand:brands_public(shopify_domain)')
+        .select('*, brand:brands_public(shopify_domain, website_url)')
         .eq('id', showId)
         .single();
 
       if (data) {
-        // Extract brand domain and add to show object for easy access
-        const brandDomain = (data.brand as { shopify_domain?: string } | null)?.shopify_domain;
+        // Extract brand domain and website_url, add to show object for easy access
+        const brand = data.brand as { shopify_domain?: string; website_url?: string } | null;
         const showWithBrand = {
           ...data,
           brand: undefined, // Remove nested brand object
-          _brandDomain: brandDomain || null, // Add as flat property
+          _brandDomain: brand?.shopify_domain || null, // Add as flat property
+          _brandWebsiteUrl: brand?.website_url || null, // Add brand website URL
         };
         setShow(showWithBrand as Show);
       } else {

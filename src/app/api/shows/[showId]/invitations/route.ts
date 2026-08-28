@@ -138,7 +138,7 @@ export async function POST(
     // Get show details with brand for email
     const { data: show } = await serviceClient
       .from('shows')
-      .select('title, scheduled_at, embed_url, brand:brands(shopify_domain)')
+      .select('title, scheduled_at, embed_url, brand:brands(shopify_domain, website_url)')
       .eq('id', showId)
       .single();
 
@@ -148,9 +148,11 @@ export async function POST(
     const protocol = host.includes('localhost') ? 'http' : 'https';
     const baseUrl = `${protocol}://${host}`;
 
-    // Determine embed URL: explicit embed_url > shopify domain > none
-    const brandDomain = (show?.brand as { shopify_domain?: string } | null)?.shopify_domain;
-    const effectiveEmbedUrl = show?.embed_url || (brandDomain ? `https://${brandDomain}` : undefined);
+    // Determine embed URL priority: show.embed_url > brand.website_url > brand.shopify_domain > none
+    const brand = show?.brand as { shopify_domain?: string; website_url?: string } | null;
+    const effectiveEmbedUrl = show?.embed_url
+      || brand?.website_url
+      || (brand?.shopify_domain ? `https://${brand.shopify_domain}` : undefined);
 
     let emailsSent = 0;
     let emailsFailed = 0;
@@ -181,6 +183,42 @@ export async function POST(
       });
 
       await Promise.all(emailPromises);
+    }
+
+    // Schedule reminder emails based on enabled sequences
+    if (invitations && invitations.length > 0) {
+      const { data: sequences } = await serviceClient
+        .from('show_email_sequences')
+        .select('*')
+        .eq('show_id', showId)
+        .eq('enabled', true);
+
+      if (sequences && sequences.length > 0 && show) {
+        const scheduledEmails = [];
+        for (const invitation of invitations) {
+          for (const sequence of sequences) {
+            const scheduledFor = new Date(show.scheduled_at);
+            scheduledFor.setMinutes(scheduledFor.getMinutes() + sequence.send_offset_minutes);
+
+            // Only schedule if in the future
+            if (scheduledFor > new Date()) {
+              scheduledEmails.push({
+                show_id: showId,
+                invitation_id: invitation.id,
+                sequence_id: sequence.id,
+                scheduled_for: scheduledFor.toISOString(),
+                status: 'pending',
+              });
+            }
+          }
+        }
+
+        if (scheduledEmails.length > 0) {
+          await serviceClient
+            .from('scheduled_emails')
+            .insert(scheduledEmails);
+        }
+      }
     }
 
     return NextResponse.json({

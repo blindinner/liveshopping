@@ -442,9 +442,11 @@ export default function EmbedLiveViewerPage() {
         return date.toISOString().replace(/[-:]/g, '').replace(/\.\d{3}/, '');
       };
 
-      // Build the join URL - use embed_url or brand domain if available
+      // Build the join URL - priority: show.embed_url > brand.website_url > brand.shopify_domain
       let joinUrl = window.location.href;
-      const effectiveEmbedUrl = show.embed_url || (show._brandDomain ? `https://${show._brandDomain}` : null);
+      const effectiveEmbedUrl = show.embed_url
+        || show._brandWebsiteUrl
+        || (show._brandDomain ? `https://${show._brandDomain}` : null);
 
       if (effectiveEmbedUrl && token) {
         const url = new URL(effectiveEmbedUrl);

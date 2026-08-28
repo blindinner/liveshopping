@@ -18,6 +18,10 @@ interface WidgetConfig {
 export default function IntegrationsPage() {
   const [brandId, setBrandId] = useState<string | null>(null);
   const [brandDomain, setBrandDomain] = useState<string | null>(null);
+  const [brandWebsiteUrl, setBrandWebsiteUrl] = useState<string | null>(null);
+  const [websiteUrlInput, setWebsiteUrlInput] = useState('');
+  const [isSavingWebsiteUrl, setIsSavingWebsiteUrl] = useState(false);
+  const [websiteUrlSaved, setWebsiteUrlSaved] = useState(false);
   const [showConnectModal, setShowConnectModal] = useState(false);
   const [shopDomain, setShopDomain] = useState('');
   const [selectedWidget, setSelectedWidget] = useState<WidgetType>('carousel');
@@ -41,6 +45,8 @@ export default function IntegrationsPage() {
         if (brandsData.brands?.[0]) {
           setBrandId(brandsData.brands[0].id);
           setBrandDomain(brandsData.brands[0].shopify_domain || null);
+          setBrandWebsiteUrl(brandsData.brands[0].website_url || null);
+          setWebsiteUrlInput(brandsData.brands[0].website_url || '');
           setConfig((c) => ({ ...c, brandId: brandsData.brands[0].id }));
         }
       } catch (error) {
@@ -52,6 +58,28 @@ export default function IntegrationsPage() {
 
     loadData();
   }, []);
+
+  const saveWebsiteUrl = async () => {
+    if (!brandId) return;
+    setIsSavingWebsiteUrl(true);
+    try {
+      const response = await fetch('/api/brands', {
+        method: 'PATCH',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ brandId, website_url: websiteUrlInput || null }),
+      });
+      if (response.ok) {
+        const data = await response.json();
+        setBrandWebsiteUrl(data.brand.website_url || null);
+        setWebsiteUrlSaved(true);
+        setTimeout(() => setWebsiteUrlSaved(false), 2000);
+      }
+    } catch (error) {
+      console.error('Failed to save website URL:', error);
+    } finally {
+      setIsSavingWebsiteUrl(false);
+    }
+  };
 
   const handleConnectShopify = (e: React.FormEvent) => {
     e.preventDefault();
@@ -224,6 +252,61 @@ export default function IntegrationsPage() {
             </div>
           </div>
         )}
+      </section>
+
+      {/* Website URL - for non-Shopify users or custom domain */}
+      <section className="mb-8">
+        <h2 className="text-lg font-semibold text-white mb-4">Website URL</h2>
+        <div className="bg-white/5 rounded-2xl p-4 border border-white/10">
+          <p className="text-white/60 text-sm mb-4">
+            {brandDomain
+              ? 'Optionally set a custom website URL to use instead of your Shopify domain for invitation links.'
+              : 'Set your website URL where you embed the live shopping widget. This will be used for all invitation links.'}
+          </p>
+          <div className="flex gap-2">
+            <input
+              type="url"
+              value={websiteUrlInput}
+              onChange={(e) => setWebsiteUrlInput(e.target.value)}
+              placeholder="https://yourbrand.com/live"
+              className="flex-1 bg-black/30 text-white text-sm rounded-lg px-3 py-2 focus:outline-none focus:ring-1 focus:ring-blue-500/50 placeholder:text-white/30 border border-white/10"
+            />
+            <button
+              onClick={saveWebsiteUrl}
+              disabled={isSavingWebsiteUrl || websiteUrlInput === (brandWebsiteUrl || '')}
+              className="px-4 py-2 bg-blue-500 hover:bg-blue-600 disabled:opacity-50 disabled:cursor-not-allowed text-white text-sm rounded-lg transition-colors flex items-center gap-2"
+            >
+              {isSavingWebsiteUrl ? (
+                <span className="w-4 h-4 border-2 border-white border-t-transparent rounded-full animate-spin" />
+              ) : websiteUrlSaved ? (
+                <>
+                  <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M5 13l4 4L19 7" />
+                  </svg>
+                  Saved
+                </>
+              ) : (
+                'Save'
+              )}
+            </button>
+          </div>
+          {brandWebsiteUrl && (
+            <p className="text-green-400/70 text-xs mt-2 flex items-center gap-1">
+              <svg className="w-3 h-3" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M5 13l4 4L19 7" />
+              </svg>
+              All invitation links will use: {brandWebsiteUrl}
+            </p>
+          )}
+          {!brandDomain && !brandWebsiteUrl && (
+            <p className="text-yellow-400/70 text-xs mt-2 flex items-center gap-1">
+              <svg className="w-3 h-3" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 9v2m0 4h.01m-6.938 4h13.856c1.54 0 2.502-1.667 1.732-3L13.732 4c-.77-1.333-2.694-1.333-3.464 0L3.34 16c-.77 1.333.192 3 1.732 3z" />
+              </svg>
+              No website configured. Invitation links will use the app domain.
+            </p>
+          )}
+        </div>
       </section>
 
       {/* Widget Embed Codes */}

@@ -12,12 +12,12 @@ export async function GET(
     const { token } = await params;
     const serviceClient = createServiceClient();
 
-    // Fetch invitation with show and guest profile
+    // Fetch invitation with show, brand info, and guest profile
     const { data: invitation, error } = await serviceClient
       .from('invitations')
       .select(`
         *,
-        show:shows(*),
+        show:shows(*, brand:brands(shopify_domain, website_url)),
         guest_profile:guest_profiles(*)
       `)
       .eq('invite_token', token)
@@ -55,6 +55,16 @@ export async function GET(
       }
     }
 
+    // Extract brand info and add to show for easy access
+    const showData = invitation.show as Record<string, unknown>;
+    const brand = showData?.brand as { shopify_domain?: string; website_url?: string } | null;
+    const showWithBrand = {
+      ...showData,
+      brand: undefined,
+      _brandDomain: brand?.shopify_domain || null,
+      _brandWebsiteUrl: brand?.website_url || null,
+    };
+
     return NextResponse.json({
       invitation: {
         id: invitation.id,
@@ -62,7 +72,7 @@ export async function GET(
         status: invitation.status,
         show_id: invitation.show_id,
       },
-      show: invitation.show,
+      show: showWithBrand,
       guest_profile: existingProfile,
     });
   } catch (error) {
@@ -194,7 +204,7 @@ export async function POST(
     // Fetch show details for confirmation email
     const { data: show } = await serviceClient
       .from('shows')
-      .select('title, scheduled_at, embed_url, brand:brands(shopify_domain)')
+      .select('title, scheduled_at, embed_url, brand:brands(shopify_domain, website_url)')
       .eq('id', invitation.show_id)
       .single();
 
@@ -205,9 +215,11 @@ export async function POST(
       const protocol = host.includes('localhost') ? 'http' : 'https';
       const baseUrl = `${protocol}://${host}`;
 
-      // Determine embed URL: explicit embed_url > shopify domain > none
-      const brandDomain = (show.brand as { shopify_domain?: string } | null)?.shopify_domain;
-      const effectiveEmbedUrl = show.embed_url || (brandDomain ? `https://${brandDomain}` : undefined);
+      // Determine embed URL priority: show.embed_url > brand.website_url > brand.shopify_domain > none
+      const brand = show.brand as { shopify_domain?: string; website_url?: string } | null;
+      const effectiveEmbedUrl = show.embed_url
+        || brand?.website_url
+        || (brand?.shopify_domain ? `https://${brand.shopify_domain}` : undefined);
 
       sendConfirmationEmail({
         to: invitation.email,

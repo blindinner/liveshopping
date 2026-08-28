@@ -10,7 +10,7 @@ export async function GET() {
     // Don't return the storefront token to the client
     const { data: brands, error } = await supabase
       .from('brands')
-      .select('id, name, shopify_domain, created_at')
+      .select('id, name, shopify_domain, website_url, created_at')
       .limit(1);
 
     if (error) {
@@ -22,6 +22,41 @@ export async function GET() {
     console.error('Get brands error:', error);
     return NextResponse.json(
       { error: 'Failed to fetch brands' },
+      { status: 500 }
+    );
+  }
+}
+
+// PATCH /api/brands - Update brand settings
+export async function PATCH(request: Request) {
+  try {
+    const { brandId, website_url } = await request.json();
+
+    if (!brandId) {
+      return NextResponse.json(
+        { error: 'brandId is required' },
+        { status: 400 }
+      );
+    }
+
+    const supabase = createServiceClient();
+
+    const { data: brand, error } = await supabase
+      .from('brands')
+      .update({ website_url: website_url || null })
+      .eq('id', brandId)
+      .select('id, name, shopify_domain, website_url, created_at')
+      .single();
+
+    if (error) {
+      throw error;
+    }
+
+    return NextResponse.json({ brand });
+  } catch (error) {
+    console.error('Update brand error:', error);
+    return NextResponse.json(
+      { error: 'Failed to update brand' },
       { status: 500 }
     );
   }

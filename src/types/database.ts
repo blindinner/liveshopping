@@ -11,6 +11,7 @@ export interface Brand {
   name: string;
   shopify_domain: string;
   shopify_storefront_token: string; // Server-only, never exposed to client
+  website_url: string | null; // Brand website URL for non-Shopify users
   platform: PlatformType;
   platform_config: Record<string, string>; // Platform-specific config (webhook_secret, etc.)
   created_at: string;
@@ -29,6 +30,7 @@ export interface Show {
   cloudflare_webrtc_url: string | null; // Host-only - WHIP URL for browser streaming
   embed_url: string | null; // Optional URL where show is embedded (for white-label redirects)
   _brandDomain?: string | null; // Populated by useShowStatus hook from brand.shopify_domain
+  _brandWebsiteUrl?: string | null; // Populated by useShowStatus hook from brand.website_url
   started_at: string | null;
   ended_at: string | null;
   created_at: string;
@@ -330,6 +332,53 @@ export interface CartSession {
   created_at: string;
   converted_at: string | null;
 }
+
+// Email sequence types
+export type ScheduledEmailStatus = 'pending' | 'sent' | 'failed' | 'cancelled';
+
+export interface ShowEmailSequence {
+  id: string;
+  show_id: string;
+  name: string;
+  subject: string;
+  body_html: string;
+  body_text: string | null;
+  send_offset_minutes: number;
+  enabled: boolean;
+  display_order: number;
+  created_at: string;
+  updated_at: string;
+}
+
+export interface ScheduledEmail {
+  id: string;
+  show_id: string;
+  invitation_id: string;
+  sequence_id: string;
+  scheduled_for: string;
+  status: ScheduledEmailStatus;
+  sent_at: string | null;
+  error_message: string | null;
+  retry_count: number;
+  created_at: string;
+  // Joined data
+  invitation?: Invitation;
+  sequence?: ShowEmailSequence;
+}
+
+// Email offset presets for UI
+export const EMAIL_OFFSET_PRESETS = [
+  { label: '7 days before', minutes: -7 * 24 * 60 },
+  { label: '3 days before', minutes: -3 * 24 * 60 },
+  { label: '1 day before', minutes: -24 * 60 },
+  { label: '12 hours before', minutes: -12 * 60 },
+  { label: '2 hours before', minutes: -2 * 60 },
+  { label: '1 hour before', minutes: -60 },
+  { label: '30 minutes before', minutes: -30 },
+  { label: '15 minutes before', minutes: -15 },
+] as const;
+
+export type EmailOffsetPreset = typeof EMAIL_OFFSET_PRESETS[number];
 
 // Analytics metrics for dashboard
 export interface ShowMetrics {

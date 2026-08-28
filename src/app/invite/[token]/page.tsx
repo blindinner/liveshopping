@@ -96,9 +96,13 @@ export default function InvitationPage() {
         router.push(`/embed/${data.show.id}?token=${token}`);
       } else if (data.show.status === 'live') {
         // If show is live, go directly to the live show
-        // Use embed_url if configured
-        if (data.show.embed_url) {
-          const url = new URL(data.show.embed_url);
+        // Priority: show.embed_url > brand.website_url > brand.shopify_domain > our domain
+        const effectiveEmbedUrl = data.show.embed_url
+          || data.show._brandWebsiteUrl
+          || (data.show._brandDomain ? `https://${data.show._brandDomain}` : null);
+
+        if (effectiveEmbedUrl) {
+          const url = new URL(effectiveEmbedUrl);
           url.searchParams.set('token', token);
           window.location.href = url.toString();
         } else {
