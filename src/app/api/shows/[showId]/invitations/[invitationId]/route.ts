@@ -33,7 +33,7 @@ export async function PATCH(
 
     const { data: show, error: showError } = await serviceClient
       .from('shows')
-      .select('title, scheduled_at, embed_url')
+      .select('title, scheduled_at, embed_url, brand:brands(shopify_domain)')
       .eq('id', showId)
       .single();
 
@@ -47,6 +47,10 @@ export async function PATCH(
     const protocol = host.includes('localhost') ? 'http' : 'https';
     const baseUrl = `${protocol}://${host}`;
 
+    // Determine embed URL: explicit embed_url > shopify domain > none
+    const brandDomain = (show.brand as { shopify_domain?: string } | null)?.shopify_domain;
+    const effectiveEmbedUrl = show.embed_url || (brandDomain ? `https://${brandDomain}` : undefined);
+
     // Send email
     const result = await sendInvitationEmail({
       to: invitation.email,
@@ -55,7 +59,7 @@ export async function PATCH(
       showId,
       inviteToken: invitation.invite_token,
       baseUrl,
-      embedUrl: show.embed_url || undefined,
+      embedUrl: effectiveEmbedUrl,
     });
 
     if (!result.success) {

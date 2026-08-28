@@ -135,10 +135,10 @@ export async function POST(
       throw error;
     }
 
-    // Get show details for email
+    // Get show details with brand for email
     const { data: show } = await serviceClient
       .from('shows')
-      .select('title, scheduled_at, embed_url')
+      .select('title, scheduled_at, embed_url, brand:brands(shopify_domain)')
       .eq('id', showId)
       .single();
 
@@ -147,6 +147,10 @@ export async function POST(
     const host = headersList.get('host') || 'localhost:3000';
     const protocol = host.includes('localhost') ? 'http' : 'https';
     const baseUrl = `${protocol}://${host}`;
+
+    // Determine embed URL: explicit embed_url > shopify domain > none
+    const brandDomain = (show?.brand as { shopify_domain?: string } | null)?.shopify_domain;
+    const effectiveEmbedUrl = show?.embed_url || (brandDomain ? `https://${brandDomain}` : undefined);
 
     let emailsSent = 0;
     let emailsFailed = 0;
@@ -160,7 +164,7 @@ export async function POST(
           showId,
           inviteToken: invitation.invite_token,
           baseUrl,
-          embedUrl: show.embed_url || undefined,
+          embedUrl: effectiveEmbedUrl,
         });
 
         if (result.success) {

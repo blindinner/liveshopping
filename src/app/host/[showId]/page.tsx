@@ -24,6 +24,7 @@ export default function HostControlPanel() {
   const [showProducts, setShowProducts] = useState<ShowProduct[]>([]);
   const [isLoading, setIsLoading] = useState(true);
   const [brandId, setBrandId] = useState<string | null>(null);
+  const [brandDomain, setBrandDomain] = useState<string | null>(null);
   const [isTogglingProduct, setIsTogglingProduct] = useState(false);
   const [embedUrl, setEmbedUrl] = useState('');
   const [isSavingEmbedUrl, setIsSavingEmbedUrl] = useState(false);
@@ -59,6 +60,7 @@ export default function HostControlPanel() {
     const data = await response.json();
     if (data.brands?.[0]) {
       setBrandId(data.brands[0].id);
+      setBrandDomain(data.brands[0].shopify_domain || null);
     }
   };
 
@@ -276,15 +278,33 @@ export default function HostControlPanel() {
           </svg>
           <h2 className="text-base font-semibold text-white">Embed Settings</h2>
         </div>
+
+        {/* Show detected Shopify domain if available */}
+        {brandDomain && !show?.embed_url && (
+          <div className="mb-3 p-2 bg-green-500/10 border border-green-500/20 rounded-lg">
+            <div className="flex items-center gap-2">
+              <svg className="w-4 h-4 text-green-400" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M5 13l4 4L19 7" />
+              </svg>
+              <span className="text-green-400 text-xs font-medium">Shopify store detected</span>
+            </div>
+            <p className="text-white/70 text-xs mt-1">
+              Using <span className="text-green-300 font-mono">{brandDomain}</span> for invitation links
+            </p>
+          </div>
+        )}
+
         <p className="text-white/50 text-xs mb-3">
-          If this show is embedded on another website, enter the URL. Invitation links will redirect viewers there.
+          {brandDomain
+            ? 'Override the detected domain with a custom URL, or leave empty to use your Shopify store.'
+            : 'If this show is embedded on another website, enter the URL. Invitation links will redirect viewers there.'}
         </p>
         <div className="flex gap-2">
           <input
             type="url"
             value={embedUrl}
             onChange={(e) => setEmbedUrl(e.target.value)}
-            placeholder="https://yourbrand.com/live-auction"
+            placeholder={brandDomain ? `https://${brandDomain}/live` : "https://yourbrand.com/live-auction"}
             className="flex-1 bg-black/30 text-white text-sm rounded-lg px-3 py-2 focus:outline-none focus:ring-1 focus:ring-blue-500/50 placeholder:text-white/30 border border-white/10"
           />
           <button

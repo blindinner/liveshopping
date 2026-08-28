@@ -194,7 +194,7 @@ export async function POST(
     // Fetch show details for confirmation email
     const { data: show } = await serviceClient
       .from('shows')
-      .select('title, scheduled_at, embed_url')
+      .select('title, scheduled_at, embed_url, brand:brands(shopify_domain)')
       .eq('id', invitation.show_id)
       .single();
 
@@ -205,6 +205,10 @@ export async function POST(
       const protocol = host.includes('localhost') ? 'http' : 'https';
       const baseUrl = `${protocol}://${host}`;
 
+      // Determine embed URL: explicit embed_url > shopify domain > none
+      const brandDomain = (show.brand as { shopify_domain?: string } | null)?.shopify_domain;
+      const effectiveEmbedUrl = show.embed_url || (brandDomain ? `https://${brandDomain}` : undefined);
+
       sendConfirmationEmail({
         to: invitation.email,
         recipientName: name,
@@ -213,7 +217,7 @@ export async function POST(
         showId: invitation.show_id,
         inviteToken: token,
         baseUrl,
-        embedUrl: show.embed_url || undefined,
+        embedUrl: effectiveEmbedUrl,
       }).catch((err) => {
         console.error('Failed to send confirmation email:', err);
       });
