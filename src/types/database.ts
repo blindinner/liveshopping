@@ -27,6 +27,7 @@ export interface Show {
   cloudflare_stream_id: string | null;
   cloudflare_playback_id: string | null;
   cloudflare_webrtc_url: string | null; // Host-only - WHIP URL for browser streaming
+  embed_url: string | null; // Optional URL where show is embedded (for white-label redirects)
   started_at: string | null;
   ended_at: string | null;
   created_at: string;

@@ -2,7 +2,6 @@
 
 import { useEffect, useState } from 'react';
 import { useParams } from 'next/navigation';
-import Link from 'next/link';
 import { Button } from '@/components/ui/Button';
 import type { Show } from '@/types/database';
 
@@ -100,6 +99,19 @@ export default function InvitationAcceptedPage() {
     }).format(new Date(date));
   };
 
+  const getJoinUrl = () => {
+    if (!data) return '';
+    // Use embed_url if configured, otherwise use our domain
+    if (data.show.embed_url) {
+      // Append token to embed URL
+      const url = new URL(data.show.embed_url);
+      url.searchParams.set('token', token);
+      return url.toString();
+    }
+    if (typeof window === 'undefined') return '';
+    return `${window.location.origin}/live/${data.show.id}?token=${token}`;
+  };
+
   const getCalendarUrl = (show: Show) => {
     const startDate = new Date(show.scheduled_at);
     const endDate = new Date(startDate.getTime() + 60 * 60 * 1000);
@@ -108,9 +120,7 @@ export default function InvitationAcceptedPage() {
       return date.toISOString().replace(/[-:]/g, '').replace(/\.\d{3}/, '');
     };
 
-    const joinUrl = typeof window !== 'undefined'
-      ? `${window.location.origin}/live/${show.id}?token=${token}`
-      : '';
+    const joinUrl = getJoinUrl();
 
     const params = new URLSearchParams({
       action: 'TEMPLATE',
@@ -120,11 +130,6 @@ export default function InvitationAcceptedPage() {
     });
 
     return `https://calendar.google.com/calendar/render?${params.toString()}`;
-  };
-
-  const getJoinUrl = () => {
-    if (typeof window === 'undefined' || !data) return '';
-    return `${window.location.origin}/live/${data.show.id}?token=${token}`;
   };
 
   const copyJoinLink = async () => {
@@ -155,7 +160,8 @@ export default function InvitationAcceptedPage() {
 
   const isShowLive = data.show.status === 'live';
   const isShowEnded = data.show.status === 'ended';
-  const isUpcoming = timeLeft !== null && !isShowLive;
+  // Check if show is upcoming by comparing dates directly (more reliable than depending on countdown state)
+  const isUpcoming = new Date(data.show.scheduled_at) > new Date() && !isShowLive && !isShowEnded;
   const guestName = data.guest_profile?.name || 'there';
 
   return (
@@ -277,12 +283,12 @@ export default function InvitationAcceptedPage() {
         {/* Actions */}
         <div className="space-y-3">
           {isShowLive && (
-            <Link href={`/live/${data.show.id}?token=${token}`} className="block">
+            <a href={getJoinUrl()} className="block">
               <Button className="w-full" size="lg">
                 <span className="w-2 h-2 bg-white rounded-full animate-pulse mr-2" />
                 Join Live Now
               </Button>
-            </Link>
+            </a>
           )}
 
           {isUpcoming && (
@@ -300,11 +306,11 @@ export default function InvitationAcceptedPage() {
                   Add to Calendar
                 </Button>
               </a>
-              <Link href={`/live/${data.show.id}?token=${token}`} className="block">
+              <a href={getJoinUrl()} className="block">
                 <Button variant="secondary" className="w-full">
                   Preview Show Page
                 </Button>
-              </Link>
+              </a>
             </>
           )}
         </div>

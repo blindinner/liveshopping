@@ -17,6 +17,7 @@ interface SendInvitationEmailParams {
   showId: string;
   inviteToken: string;
   baseUrl: string;
+  embedUrl?: string;
 }
 
 export async function sendInvitationEmail({
@@ -26,9 +27,18 @@ export async function sendInvitationEmail({
   showId,
   inviteToken,
   baseUrl,
+  embedUrl,
 }: SendInvitationEmailParams): Promise<{ success: boolean; error?: string }> {
   const inviteUrl = `${baseUrl}/invite/${inviteToken}`;
-  const joinUrl = `${baseUrl}/live/${showId}?token=${inviteToken}`;
+  // Use embed URL for join link if configured
+  let joinUrl: string;
+  if (embedUrl) {
+    const url = new URL(embedUrl);
+    url.searchParams.set('token', inviteToken);
+    joinUrl = url.toString();
+  } else {
+    joinUrl = `${baseUrl}/live/${showId}?token=${inviteToken}`;
+  }
 
   try {
     const { error } = await resend.emails.send({
@@ -74,6 +84,7 @@ interface SendConfirmationEmailParams {
   showId: string;
   inviteToken: string;
   baseUrl: string;
+  embedUrl?: string;
 }
 
 export async function sendConfirmationEmail({
@@ -84,8 +95,17 @@ export async function sendConfirmationEmail({
   showId,
   inviteToken,
   baseUrl,
+  embedUrl,
 }: SendConfirmationEmailParams): Promise<{ success: boolean; error?: string }> {
-  const joinUrl = `${baseUrl}/live/${showId}?token=${inviteToken}`;
+  // Use embed URL if configured, otherwise use our domain
+  let joinUrl: string;
+  if (embedUrl) {
+    const url = new URL(embedUrl);
+    url.searchParams.set('token', inviteToken);
+    joinUrl = url.toString();
+  } else {
+    joinUrl = `${baseUrl}/live/${showId}?token=${inviteToken}`;
+  }
 
   // Generate ICS file for attachment
   const icsContent = generateICSContent({

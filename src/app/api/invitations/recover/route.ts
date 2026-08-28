@@ -24,7 +24,7 @@ export async function POST(request: Request) {
       .from('invitations')
       .select(`
         *,
-        show:shows(id, title, scheduled_at, status)
+        show:shows(id, title, scheduled_at, status, embed_url)
       `)
       .eq('email', normalizedEmail)
       .in('status', ['pending', 'accepted'])
@@ -36,7 +36,7 @@ export async function POST(request: Request) {
 
     // Filter to only upcoming or live shows
     const activeInvitations = invitations?.filter((inv) => {
-      const show = inv.show as { id: string; title: string; scheduled_at: string; status: string } | null;
+      const show = inv.show as { id: string; title: string; scheduled_at: string; status: string; embed_url: string | null } | null;
       if (!show) return false;
       // Include if show is not ended
       return show.status !== 'ended';
@@ -59,7 +59,7 @@ export async function POST(request: Request) {
     let emailsSent = 0;
 
     for (const invitation of activeInvitations) {
-      const show = invitation.show as { id: string; title: string; scheduled_at: string; status: string };
+      const show = invitation.show as { id: string; title: string; scheduled_at: string; status: string; embed_url: string | null };
 
       const result = await sendInvitationEmail({
         to: invitation.email,
@@ -68,6 +68,7 @@ export async function POST(request: Request) {
         showId: show.id,
         inviteToken: invitation.invite_token,
         baseUrl,
+        embedUrl: show.embed_url || undefined,
       });
 
       if (result.success) {

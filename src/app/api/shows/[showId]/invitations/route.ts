@@ -138,7 +138,7 @@ export async function POST(
     // Get show details for email
     const { data: show } = await serviceClient
       .from('shows')
-      .select('title, scheduled_at')
+      .select('title, scheduled_at, embed_url')
       .eq('id', showId)
       .single();
 
@@ -160,6 +160,7 @@ export async function POST(
           showId,
           inviteToken: invitation.invite_token,
           baseUrl,
+          embedUrl: show.embed_url || undefined,
         });
 
         if (result.success) {

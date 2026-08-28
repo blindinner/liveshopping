@@ -33,7 +33,7 @@ export async function PATCH(
 
     const { data: show, error: showError } = await serviceClient
       .from('shows')
-      .select('title, scheduled_at')
+      .select('title, scheduled_at, embed_url')
       .eq('id', showId)
       .single();
 
@@ -55,6 +55,7 @@ export async function PATCH(
       showId,
       inviteToken: invitation.invite_token,
       baseUrl,
+      embedUrl: show.embed_url || undefined,
     });
 
     if (!result.success) {

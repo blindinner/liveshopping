@@ -194,7 +194,7 @@ export async function POST(
     // Fetch show details for confirmation email
     const { data: show } = await serviceClient
       .from('shows')
-      .select('title, scheduled_at')
+      .select('title, scheduled_at, embed_url')
       .eq('id', invitation.show_id)
       .single();
 
@@ -213,6 +213,7 @@ export async function POST(
         showId: invitation.show_id,
         inviteToken: token,
         baseUrl,
+        embedUrl: show.embed_url || undefined,
       }).catch((err) => {
         console.error('Failed to send confirmation email:', err);
       });

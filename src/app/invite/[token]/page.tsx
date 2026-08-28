@@ -81,8 +81,20 @@ export default function InvitationPage() {
         throw new Error(errorData.error || 'Failed to accept invitation');
       }
 
-      // Redirect to confirmation page
-      router.push(`/invite/${token}/accepted`);
+      // If show is live, go directly to the live show
+      // Otherwise, go to the confirmation page with calendar options
+      if (data?.show.status === 'live') {
+        // Use embed_url if configured
+        if (data.show.embed_url) {
+          const url = new URL(data.show.embed_url);
+          url.searchParams.set('token', token);
+          window.location.href = url.toString();
+        } else {
+          router.push(`/live/${data.show.id}?token=${token}`);
+        }
+      } else {
+        router.push(`/invite/${token}/accepted`);
+      }
     } catch (err) {
       console.error('Accept invitation error:', err);
       setError(err instanceof Error ? err.message : 'Failed to accept invitation');

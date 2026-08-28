@@ -647,32 +647,58 @@ export function ProductStaging({
                         </div>
 
                         {auctionSettings.sale_type === 'auction' && (
-                          <div className="grid grid-cols-2 gap-3">
-                            <div>
-                              <label className="block text-white/70 text-xs mb-1">Starting Price *</label>
-                              <input
-                                type="number"
-                                step="0.01"
-                                value={auctionSettings.starting_price}
-                                onChange={(e) => setAuctionSettings({ ...auctionSettings, starting_price: e.target.value })}
-                                placeholder="0.00"
-                                className="w-full bg-black/30 text-white text-sm rounded-lg px-3 py-2 focus:outline-none focus:ring-1 focus:ring-orange-500/50 placeholder:text-white/30 border border-white/10"
-                              />
-                              <p className="text-white/40 text-xs mt-1">Minimum bid to start</p>
+                          <>
+                            {/* Currency indicator */}
+                            <div className="flex items-center gap-2 px-3 py-2 bg-orange-500/10 border border-orange-500/20 rounded-lg">
+                              <span className="text-orange-400 text-sm font-medium">
+                                Currency: {sp.product?.currency || 'USD'}
+                              </span>
+                              <span className="text-white/40 text-xs">
+                                (inherited from product)
+                              </span>
                             </div>
-                            <div>
-                              <label className="block text-white/70 text-xs mb-1">Bid Increment *</label>
-                              <input
-                                type="number"
-                                step="0.01"
-                                value={auctionSettings.bid_increment}
-                                onChange={(e) => setAuctionSettings({ ...auctionSettings, bid_increment: e.target.value })}
-                                placeholder="0.00"
-                                className="w-full bg-black/30 text-white text-sm rounded-lg px-3 py-2 focus:outline-none focus:ring-1 focus:ring-orange-500/50 placeholder:text-white/30 border border-white/10"
-                              />
-                              <p className="text-white/40 text-xs mt-1">Min increase per bid</p>
+
+                            <div className="grid grid-cols-2 gap-3">
+                              <div>
+                                <label className="block text-white/70 text-xs mb-1">
+                                  Starting Price ({sp.product?.currency || 'USD'}) *
+                                </label>
+                                <div className="relative">
+                                  <span className="absolute left-3 top-1/2 -translate-y-1/2 text-white/40 text-sm">
+                                    {sp.product?.currency || 'USD'}
+                                  </span>
+                                  <input
+                                    type="number"
+                                    step="0.01"
+                                    value={auctionSettings.starting_price}
+                                    onChange={(e) => setAuctionSettings({ ...auctionSettings, starting_price: e.target.value })}
+                                    placeholder="0.00"
+                                    className="w-full bg-black/30 text-white text-sm rounded-lg pl-12 pr-3 py-2 focus:outline-none focus:ring-1 focus:ring-orange-500/50 placeholder:text-white/30 border border-white/10"
+                                  />
+                                </div>
+                                <p className="text-white/40 text-xs mt-1">Minimum bid to start</p>
+                              </div>
+                              <div>
+                                <label className="block text-white/70 text-xs mb-1">
+                                  Bid Increment ({sp.product?.currency || 'USD'}) *
+                                </label>
+                                <div className="relative">
+                                  <span className="absolute left-3 top-1/2 -translate-y-1/2 text-white/40 text-sm">
+                                    {sp.product?.currency || 'USD'}
+                                  </span>
+                                  <input
+                                    type="number"
+                                    step="0.01"
+                                    value={auctionSettings.bid_increment}
+                                    onChange={(e) => setAuctionSettings({ ...auctionSettings, bid_increment: e.target.value })}
+                                    placeholder="0.00"
+                                    className="w-full bg-black/30 text-white text-sm rounded-lg pl-12 pr-3 py-2 focus:outline-none focus:ring-1 focus:ring-orange-500/50 placeholder:text-white/30 border border-white/10"
+                                  />
+                                </div>
+                                <p className="text-white/40 text-xs mt-1">Min increase per bid</p>
+                              </div>
                             </div>
-                          </div>
+                          </>
                         )}
 
                         <div className="flex justify-end gap-2">
