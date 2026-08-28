@@ -89,10 +89,12 @@ export default function InvitationPage() {
       }
 
       // Determine where to redirect after registration
-      if (isEmbedded) {
+      if (!data) {
+        router.push(`/invite/${token}/accepted`);
+      } else if (isEmbedded) {
         // In embed mode, always go to the embed viewer
         router.push(`/embed/${data.show.id}?token=${token}`);
-      } else if (data?.show.status === 'live') {
+      } else if (data.show.status === 'live') {
         // If show is live, go directly to the live show
         // Use embed_url if configured
         if (data.show.embed_url) {
