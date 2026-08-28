@@ -200,15 +200,6 @@ export function getDefaultEmailSequences(showTitle: string): Omit<ShowEmailSeque
       enabled: true,
       display_order: 1,
     },
-    {
-      name: '1 Hour Reminder',
-      subject: `Starting soon: {{show_title}}`,
-      body_html: getDefaultEmailHtml('1 hour'),
-      body_text: null,
-      send_offset_minutes: -60,
-      enabled: true,
-      display_order: 2,
-    },
   ];
 }
 
