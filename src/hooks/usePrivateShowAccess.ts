@@ -16,6 +16,8 @@ interface PrivateShowAccessResult {
   guestProfile: GuestProfile | null;
   viewerId: string | null;
   error: string | null;
+  needsRegistration: boolean;
+  pendingToken: string | null;
 }
 
 export function usePrivateShowAccess(showId: string, token?: string | null): PrivateShowAccessResult {
@@ -25,6 +27,8 @@ export function usePrivateShowAccess(showId: string, token?: string | null): Pri
   const [guestProfile, setGuestProfile] = useState<GuestProfile | null>(null);
   const [viewerId, setViewerId] = useState<string | null>(null);
   const [error, setError] = useState<string | null>(null);
+  const [needsRegistration, setNeedsRegistration] = useState(false);
+  const [pendingToken, setPendingToken] = useState<string | null>(null);
 
   const getStorageKey = useCallback(() => `private_show_${showId}`, [showId]);
 
@@ -66,9 +70,18 @@ export function usePrivateShowAccess(showId: string, token?: string | null): Pri
         throw new Error('This invitation is for a different show');
       }
 
+      // Check if invitation is pending (needs registration)
+      if (data.invitation.status === 'pending') {
+        setNeedsRegistration(true);
+        setPendingToken(tokenToValidate);
+        setIsAuthorized(false);
+        setError(null);
+        return;
+      }
+
       // Check if invitation is accepted
       if (data.invitation.status !== 'accepted') {
-        throw new Error('Please accept your invitation first');
+        throw new Error('This invitation is no longer valid');
       }
 
       // Generate viewer_id from invitation
@@ -85,6 +98,8 @@ export function usePrivateShowAccess(showId: string, token?: string | null): Pri
       setGuestProfile(data.guest_profile);
       setViewerId(invitedViewerId);
       setIsAuthorized(true);
+      setNeedsRegistration(false);
+      setPendingToken(null);
       setError(null);
     } catch (err) {
       console.error('Token validation error:', err);
@@ -159,5 +174,7 @@ export function usePrivateShowAccess(showId: string, token?: string | null): Pri
     guestProfile,
     viewerId,
     error,
+    needsRegistration,
+    pendingToken,
   };
 }

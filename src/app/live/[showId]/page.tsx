@@ -26,11 +26,12 @@ import { useBidderRegistration, useAuction, useAuctionWins } from '@/hooks/useAu
 import { usePrivateShowAccess } from '@/hooks/usePrivateShowAccess';
 import { PrivateShowAccessDenied } from '@/components/viewer/PrivateShowAccessDenied';
 import type { ShowProduct } from '@/types/database';
-import { useParams, useSearchParams } from 'next/navigation';
+import { useParams, useSearchParams, useRouter } from 'next/navigation';
 
 function LiveViewerContent() {
   const params = useParams();
   const searchParams = useSearchParams();
+  const router = useRouter();
   const showId = params.showId as string;
   const token = searchParams.get('token');
   const locale = 'en' as const;
@@ -41,6 +42,8 @@ function LiveViewerContent() {
     isValidating: isPrivateValidating,
     viewerId: invitedViewerId,
     guestProfile,
+    needsRegistration,
+    pendingToken,
   } = usePrivateShowAccess(showId, token);
 
   // Generate viewer ID (use invited ID for private shows, or generate one for public)
@@ -63,6 +66,13 @@ function LiveViewerContent() {
   const [isPollOpen, setIsPollOpen] = useState(false);
   const [showBidderRegistration, setShowBidderRegistration] = useState(false);
   const [dismissedWinIds, setDismissedWinIds] = useState<string[]>([]);
+
+  // Redirect to registration if invitation is pending
+  useEffect(() => {
+    if (needsRegistration && pendingToken) {
+      router.replace(`/invite/${pendingToken}`);
+    }
+  }, [needsRegistration, pendingToken, router]);
 
   // Update viewer name from guest profile for private shows
   useEffect(() => {
@@ -182,7 +192,8 @@ function LiveViewerContent() {
   };
 
 
-  if (showLoading || !show || (isPrivateShow && isPrivateValidating)) {
+  // Show loading while redirecting to registration
+  if (showLoading || !show || (isPrivateShow && isPrivateValidating) || (needsRegistration && pendingToken)) {
     return (
       <div className="fixed inset-0 bg-black flex items-center justify-center">
         <div className="animate-spin w-8 h-8 border-2 border-white border-t-transparent rounded-full" />
