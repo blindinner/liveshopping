@@ -50,6 +50,7 @@ function LiveShoppingContent() {
   const [newShowType, setNewShowType] = useState<AuctionType>('public');
   const [newShowEmbedUrl, setNewShowEmbedUrl] = useState('');
   const [brandId, setBrandId] = useState<string | null>(null);
+  const [brandDomain, setBrandDomain] = useState<string | null>(null);
   const [justInstalled, setJustInstalled] = useState(false);
   const router = useRouter();
   const searchParams = useSearchParams();
@@ -69,6 +70,7 @@ function LiveShoppingContent() {
     const data = await response.json();
     if (data.brands?.[0]) {
       setBrandId(data.brands[0].id);
+      setBrandDomain(data.brands[0].shopify_domain || null);
     }
   };
 
@@ -176,19 +178,53 @@ function LiveShoppingContent() {
           </div>
           <ShowTypeToggle value={newShowType} onChange={setNewShowType} />
 
-          {/* Embed URL - optional, for white-label widget support */}
+          {/* Show where invitation links will go */}
+          {newShowType === 'private' && (
+            <div className={`p-3 rounded-lg border ${brandDomain ? 'bg-green-500/10 border-green-500/20' : 'bg-yellow-500/10 border-yellow-500/20'}`}>
+              <div className="flex items-start gap-2">
+                {brandDomain ? (
+                  <>
+                    <svg className="w-5 h-5 text-green-400 mt-0.5 flex-shrink-0" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                      <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M5 13l4 4L19 7" />
+                    </svg>
+                    <div>
+                      <p className="text-green-400 text-sm font-medium">Shopify store connected</p>
+                      <p className="text-white/70 text-xs mt-1">
+                        Invitation links will direct guests to: <span className="text-green-300 font-mono">{brandDomain}</span>
+                      </p>
+                    </div>
+                  </>
+                ) : (
+                  <>
+                    <svg className="w-5 h-5 text-yellow-400 mt-0.5 flex-shrink-0" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                      <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 9v2m0 4h.01m-6.938 4h13.856c1.54 0 2.502-1.667 1.732-3L13.732 4c-.77-1.333-2.694-1.333-3.464 0L3.34 16c-.77 1.333.192 3 1.732 3z" />
+                    </svg>
+                    <div>
+                      <p className="text-yellow-400 text-sm font-medium">No store connected</p>
+                      <p className="text-white/70 text-xs mt-1">
+                        Invitation links will direct guests to shoppablevids.com. Connect a Shopify store or set a custom embed URL below to use your own domain.
+                      </p>
+                    </div>
+                  </>
+                )}
+              </div>
+            </div>
+          )}
+
+          {/* Embed URL - optional override */}
           <div className="space-y-2">
             <Input
               name="embed_url"
-              label="Embed URL (Optional)"
-              placeholder="https://yourbrand.com/live-auction"
+              label={brandDomain ? "Custom Embed URL (Optional Override)" : "Embed URL (Optional)"}
+              placeholder={brandDomain ? `https://${brandDomain}/live` : "https://yourbrand.com/live-auction"}
               value={newShowEmbedUrl}
               onChange={(e) => setNewShowEmbedUrl(e.target.value)}
               type="url"
             />
             <p className="text-white/40 text-xs">
-              If this show will be embedded on another website, enter the URL here.
-              Invitation links will redirect viewers to this URL instead of shoppablevids.com.
+              {brandDomain
+                ? `Leave empty to use your Shopify store (${brandDomain}), or enter a custom URL to override.`
+                : 'If this show will be embedded on another website, enter the URL here. Invitation links will redirect viewers to this URL.'}
             </p>
           </div>
 
