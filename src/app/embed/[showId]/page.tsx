@@ -433,12 +433,44 @@ export default function EmbedLiveViewerPage() {
 
   // Pre-show state (scheduled)
   if (show.status === 'scheduled') {
+    // Generate Google Calendar URL
+    const getCalendarUrl = () => {
+      const startDate = new Date(show.scheduled_at);
+      const endDate = new Date(startDate.getTime() + 60 * 60 * 1000);
+
+      const formatCalendarDate = (date: Date) => {
+        return date.toISOString().replace(/[-:]/g, '').replace(/\.\d{3}/, '');
+      };
+
+      const params = new URLSearchParams({
+        action: 'TEMPLATE',
+        text: `${isPrivateShow ? 'Private Auction' : 'Live Show'}: ${show.title}`,
+        dates: `${formatCalendarDate(startDate)}/${formatCalendarDate(endDate)}`,
+        details: `Join the ${isPrivateShow ? 'private auction' : 'live show'} at ${window.location.href}`,
+      });
+
+      return `https://calendar.google.com/calendar/render?${params.toString()}`;
+    };
+
+    const calendarLabel = locale === 'he' ? 'הוסף ליומן' : 'Add to Calendar';
+
     return (
       <div className="fixed inset-0 bg-gradient-to-b from-gray-900 to-black flex flex-col items-center justify-center p-6">
         <h1 className="text-xl font-bold text-white mb-2 text-center">{show.title}</h1>
         <div className="mt-6">
           <Countdown targetDate={new Date(show.scheduled_at)} locale={locale} />
         </div>
+        <a
+          href={getCalendarUrl()}
+          target="_blank"
+          rel="noopener noreferrer"
+          className="mt-8 px-6 py-3 bg-pink-500 hover:bg-pink-600 text-white font-medium rounded-full transition-colors flex items-center gap-2"
+        >
+          <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+            <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M8 7V3m8 4V3m-9 8h10M5 21h14a2 2 0 002-2V7a2 2 0 00-2-2H5a2 2 0 00-2 2v12a2 2 0 002 2z" />
+          </svg>
+          {calendarLabel}
+        </a>
       </div>
     );
   }
