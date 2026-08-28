@@ -329,11 +329,22 @@ export function useShowStatus(showId: string) {
     async function loadShow() {
       const { data } = await supabase
         .from('shows')
-        .select('*')
+        .select('*, brand:brands(shopify_domain)')
         .eq('id', showId)
         .single();
 
-      setShow(data);
+      if (data) {
+        // Extract brand domain and add to show object for easy access
+        const brandDomain = (data.brand as { shopify_domain?: string } | null)?.shopify_domain;
+        const showWithBrand = {
+          ...data,
+          brand: undefined, // Remove nested brand object
+          _brandDomain: brandDomain || null, // Add as flat property
+        };
+        setShow(showWithBrand as Show);
+      } else {
+        setShow(null);
+      }
       setIsLoading(false);
     }
 
@@ -350,8 +361,9 @@ export function useShowStatus(showId: string) {
           table: 'shows',
           filter: `id=eq.${showId}`,
         },
-        (payload) => {
-          setShow(payload.new as Show);
+        async () => {
+          // Reload with brand data on updates
+          await loadShow();
         }
       )
       .subscribe();

@@ -442,11 +442,23 @@ export default function EmbedLiveViewerPage() {
         return date.toISOString().replace(/[-:]/g, '').replace(/\.\d{3}/, '');
       };
 
+      // Build the join URL - use embed_url or brand domain if available
+      let joinUrl = window.location.href;
+      const effectiveEmbedUrl = show.embed_url || (show._brandDomain ? `https://${show._brandDomain}` : null);
+
+      if (effectiveEmbedUrl && token) {
+        const url = new URL(effectiveEmbedUrl);
+        url.searchParams.set('token', token);
+        joinUrl = url.toString();
+      } else if (effectiveEmbedUrl) {
+        joinUrl = effectiveEmbedUrl;
+      }
+
       const params = new URLSearchParams({
         action: 'TEMPLATE',
         text: `${isPrivateShow ? 'Private Auction' : 'Live Show'}: ${show.title}`,
         dates: `${formatCalendarDate(startDate)}/${formatCalendarDate(endDate)}`,
-        details: `Join the ${isPrivateShow ? 'private auction' : 'live show'} at ${window.location.href}`,
+        details: `Join the ${isPrivateShow ? 'private auction' : 'live show'} at ${joinUrl}`,
       });
 
       return `https://calendar.google.com/calendar/render?${params.toString()}`;
