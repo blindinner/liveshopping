@@ -551,16 +551,136 @@ export async function GET(
     }
   }
 
-  // Initialize
-  checkLiveStatus();
+  // Check for invitation token in URL
+  function checkInvitationToken() {
+    const url = new URL(window.location.href);
+    const token = url.searchParams.get('token');
+
+    if (token) {
+      // Store token for this session
+      sessionStorage.setItem('ls_invite_token', token);
+
+      // Clean the URL (remove token param) without page reload
+      url.searchParams.delete('token');
+      window.history.replaceState({}, '', url.toString());
+
+      // Open modal with invitation flow
+      openInviteModal(token);
+      return true;
+    }
+
+    // Check if there's a stored token from a previous page load
+    const storedToken = sessionStorage.getItem('ls_invite_token');
+    if (storedToken) {
+      openInviteModal(storedToken);
+      return true;
+    }
+
+    return false;
+  }
+
+  // Open modal for invitation flow (registration + live viewing)
+  function openInviteModal(token) {
+    removeBubble();
+    removeMini();
+
+    modalElement = document.createElement('div');
+    modalElement.className = 'ls-modal-overlay';
+    modalElement.innerHTML = \`
+      <div class="ls-modal-container">
+        <div class="ls-modal-controls">
+          <button class="ls-modal-btn ls-minimize-btn" aria-label="\${t.minimize}">
+            <svg fill="none" stroke="currentColor" viewBox="0 0 24 24">
+              <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M19 14l-7 7m0 0l-7-7m7 7V3"/>
+            </svg>
+          </button>
+          <button class="ls-modal-btn ls-close-btn" aria-label="\${t.close}">
+            <svg fill="none" stroke="currentColor" viewBox="0 0 24 24">
+              <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M6 18L18 6M6 6l12 12"/>
+            </svg>
+          </button>
+        </div>
+        <iframe
+          class="ls-modal-iframe"
+          src="\${BASE_URL}/invite/\${token}?embed=true"
+          allow="autoplay; fullscreen; web-share"
+        ></iframe>
+      </div>
+    \`;
+
+    modalElement.addEventListener('click', (e) => {
+      if (e.target === modalElement) minimizeToMini();
+    });
+
+    modalElement.querySelector('.ls-close-btn').addEventListener('click', () => {
+      sessionStorage.removeItem('ls_invite_token');
+      closeAll();
+    });
+    modalElement.querySelector('.ls-minimize-btn').addEventListener('click', minimizeToInviteMini);
+
+    document.addEventListener('keydown', handleEscape);
+    document.body.appendChild(modalElement);
+    document.body.style.overflow = 'hidden';
+    currentMode = 'modal';
+  }
+
+  // Minimize to corner miniplayer for invite flow
+  function minimizeToInviteMini() {
+    const token = sessionStorage.getItem('ls_invite_token');
+    if (!token) {
+      minimizeToMini();
+      return;
+    }
+
+    removeModal();
+
+    miniElement = document.createElement('div');
+    miniElement.className = 'ls-mini';
+    miniElement.innerHTML = \`
+      <div class="ls-mini-controls">
+        <button class="ls-mini-btn ls-maximize-btn" aria-label="\${t.maximize}">
+          <svg fill="none" stroke="currentColor" viewBox="0 0 24 24">
+            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M4 8V4m0 0h4M4 4l5 5m11-1V4m0 0h-4m4 0l-5 5M4 16v4m0 0h4m-4 0l5-5m11 5l-5-5m5 5v-4m0 4h-4"/>
+          </svg>
+        </button>
+        <button class="ls-mini-btn ls-close-btn" aria-label="\${t.close}">
+          <svg fill="none" stroke="currentColor" viewBox="0 0 24 24">
+            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M6 18L18 6M6 6l12 12"/>
+          </svg>
+        </button>
+      </div>
+      <iframe
+        class="ls-mini-iframe"
+        src="\${BASE_URL}/invite/\${token}?embed=true&mode=mini"
+        allow="autoplay; fullscreen; web-share"
+      ></iframe>
+    \`;
+
+    miniElement.querySelector('.ls-maximize-btn').addEventListener('click', () => openInviteModal(token));
+    miniElement.querySelector('.ls-close-btn').addEventListener('click', () => {
+      sessionStorage.removeItem('ls_invite_token');
+      closeAll();
+    });
+
+    document.body.appendChild(miniElement);
+    currentMode = 'mini';
+  }
+
+  // Initialize - check for token first, then live status
+  const hasToken = checkInvitationToken();
+  if (!hasToken) {
+    checkLiveStatus();
+  }
   setInterval(checkLiveStatus, CHECK_INTERVAL);
 
   // Expose API
   window.LiveShopping = {
     open: openModal,
+    openInvite: openInviteModal,
     minimize: minimizeToMini,
     close: closeAll,
-    check: checkLiveStatus
+    check: checkLiveStatus,
+    clearInvite: function() { sessionStorage.removeItem('ls_invite_token'); }
   };
 })();
 `;

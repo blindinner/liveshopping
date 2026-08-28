@@ -25,6 +25,9 @@ export default function HostControlPanel() {
   const [isLoading, setIsLoading] = useState(true);
   const [brandId, setBrandId] = useState<string | null>(null);
   const [isTogglingProduct, setIsTogglingProduct] = useState(false);
+  const [embedUrl, setEmbedUrl] = useState('');
+  const [isSavingEmbedUrl, setIsSavingEmbedUrl] = useState(false);
+  const [embedUrlSaved, setEmbedUrlSaved] = useState(false);
 
   // Real-time hooks
   const { show: realtimeShow } = useShowStatus(showId);
@@ -37,6 +40,13 @@ export default function HostControlPanel() {
       setShow(realtimeShow);
     }
   }, [realtimeShow]);
+
+  // Initialize embed URL from show data
+  useEffect(() => {
+    if (show?.embed_url) {
+      setEmbedUrl(show.embed_url);
+    }
+  }, [show?.embed_url]);
 
   // Load initial data
   useEffect(() => {
@@ -119,6 +129,28 @@ export default function HostControlPanel() {
     } catch (error) {
       console.error('Failed to update status:', error);
       alert(`Failed to ${status === 'ended' ? 'end' : 'start'} show. Please try again.`);
+    }
+  };
+
+  const saveEmbedUrl = async () => {
+    setIsSavingEmbedUrl(true);
+    try {
+      const response = await fetch(`/api/shows/${showId}`, {
+        method: 'PATCH',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ embed_url: embedUrl || null }),
+      });
+
+      if (response.ok) {
+        const { show: updatedShow } = await response.json();
+        setShow(updatedShow);
+        setEmbedUrlSaved(true);
+        setTimeout(() => setEmbedUrlSaved(false), 2000);
+      }
+    } catch (error) {
+      console.error('Failed to save embed URL:', error);
+    } finally {
+      setIsSavingEmbedUrl(false);
     }
   };
 
@@ -235,6 +267,54 @@ export default function HostControlPanel() {
     <>
       {/* Metrics Dashboard */}
       <MetricsDashboard showId={showId} viewerCount={viewerCount} />
+
+      {/* Embed URL Settings */}
+      <section className="bg-white/5 rounded-2xl p-4 border border-white/10">
+        <div className="flex items-center gap-2 mb-3">
+          <svg className="w-5 h-5 text-blue-400" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+            <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M10 6H6a2 2 0 00-2 2v10a2 2 0 002 2h10a2 2 0 002-2v-4M14 4h6m0 0v6m0-6L10 14" />
+          </svg>
+          <h2 className="text-base font-semibold text-white">Embed Settings</h2>
+        </div>
+        <p className="text-white/50 text-xs mb-3">
+          If this show is embedded on another website, enter the URL. Invitation links will redirect viewers there.
+        </p>
+        <div className="flex gap-2">
+          <input
+            type="url"
+            value={embedUrl}
+            onChange={(e) => setEmbedUrl(e.target.value)}
+            placeholder="https://yourbrand.com/live-auction"
+            className="flex-1 bg-black/30 text-white text-sm rounded-lg px-3 py-2 focus:outline-none focus:ring-1 focus:ring-blue-500/50 placeholder:text-white/30 border border-white/10"
+          />
+          <button
+            onClick={saveEmbedUrl}
+            disabled={isSavingEmbedUrl || embedUrl === (show?.embed_url || '')}
+            className="px-3 py-2 bg-blue-500 hover:bg-blue-600 disabled:opacity-50 disabled:cursor-not-allowed text-white text-sm rounded-lg transition-colors flex items-center gap-2"
+          >
+            {isSavingEmbedUrl ? (
+              <span className="w-4 h-4 border-2 border-white border-t-transparent rounded-full animate-spin" />
+            ) : embedUrlSaved ? (
+              <>
+                <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M5 13l4 4L19 7" />
+                </svg>
+                Saved
+              </>
+            ) : (
+              'Save'
+            )}
+          </button>
+        </div>
+        {show?.embed_url && (
+          <p className="text-green-400/70 text-xs mt-2 flex items-center gap-1">
+            <svg className="w-3 h-3" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+              <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M5 13l4 4L19 7" />
+            </svg>
+            Viewers will be redirected to: {show.embed_url}
+          </p>
+        )}
+      </section>
 
       {/* Invitation Manager - shows for private auctions */}
       {show.auction_type === 'private' && (

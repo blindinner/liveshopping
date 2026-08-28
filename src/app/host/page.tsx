@@ -48,6 +48,7 @@ function LiveShoppingContent() {
   const [newShowTitle, setNewShowTitle] = useState('');
   const [newShowDate, setNewShowDate] = useState('');
   const [newShowType, setNewShowType] = useState<AuctionType>('public');
+  const [newShowEmbedUrl, setNewShowEmbedUrl] = useState('');
   const [brandId, setBrandId] = useState<string | null>(null);
   const [justInstalled, setJustInstalled] = useState(false);
   const router = useRouter();
@@ -97,6 +98,7 @@ function LiveShoppingContent() {
           scheduledAt: new Date(newShowDate).toISOString(),
           brandId,
           auctionType: newShowType,
+          embedUrl: newShowEmbedUrl || undefined,
         }),
       });
 
@@ -173,6 +175,23 @@ function LiveShoppingContent() {
             />
           </div>
           <ShowTypeToggle value={newShowType} onChange={setNewShowType} />
+
+          {/* Embed URL - optional, for white-label widget support */}
+          <div className="space-y-2">
+            <Input
+              name="embed_url"
+              label="Embed URL (Optional)"
+              placeholder="https://yourbrand.com/live-auction"
+              value={newShowEmbedUrl}
+              onChange={(e) => setNewShowEmbedUrl(e.target.value)}
+              type="url"
+            />
+            <p className="text-white/40 text-xs">
+              If this show will be embedded on another website, enter the URL here.
+              Invitation links will redirect viewers to this URL instead of shoppablevids.com.
+            </p>
+          </div>
+
           <Button
             type="submit"
             isLoading={isCreating}

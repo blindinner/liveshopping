@@ -16,6 +16,8 @@ import {
 import { useCart } from '@/hooks/useCart';
 import { useActivePoll } from '@/hooks/usePolls';
 import { useBidderRegistration, useAuction, useAuctionWins } from '@/hooks/useAuction';
+import { usePrivateShowAccess } from '@/hooks/usePrivateShowAccess';
+import { PrivateShowAccessDenied } from '@/components/viewer/PrivateShowAccessDenied';
 import type { Product, ShowProduct, SaleType, AuctionStatus } from '@/types/database';
 import { useParams, useSearchParams } from 'next/navigation';
 
@@ -252,9 +254,20 @@ export default function EmbedLiveViewerPage() {
 
   // Configuration from URL params
   const locale = (searchParams.get('locale') || 'en') as 'he' | 'en';
+  const token = searchParams.get('token');
 
-  // Generate viewer ID (persisted in memory for the session)
-  const [viewerId] = useState(() => `embed-${Date.now()}-${Math.random().toString(36).slice(2)}`);
+  // Private show access control
+  const {
+    isAuthorized: isPrivateAuthorized,
+    isValidating: isPrivateValidating,
+    viewerId: invitedViewerId,
+    guestProfile,
+    needsRegistration,
+    pendingToken,
+  } = usePrivateShowAccess(showId, token);
+
+  // Generate viewer ID (use invited ID for private shows, or generate one)
+  const [generatedViewerId] = useState(() => `embed-${Date.now()}-${Math.random().toString(36).slice(2)}`);
   const [isCartOpen, setIsCartOpen] = useState(false);
   const [isPollOpen, setIsPollOpen] = useState(false);
   const [showBidderRegistration, setShowBidderRegistration] = useState(false);
@@ -262,6 +275,13 @@ export default function EmbedLiveViewerPage() {
 
   // Real-time hooks
   const { show, isLoading: showLoading } = useShowStatus(showId);
+
+  // Determine effective viewer ID based on show type
+  const isPrivateShow = show?.auction_type === 'private';
+  const viewerId = isPrivateShow && invitedViewerId ? invitedViewerId : generatedViewerId;
+
+  // For private shows with accepted invitations, bidder is already registered
+  const isPreRegisteredBidder = isPrivateShow && isPrivateAuthorized && !!invitedViewerId;
   const { activeProduct } = useShowProducts(showId);
   const { viewerCount } = useViewerPresence(showId, viewerId);
   const { activePoll, hasVoted, submitVote } = useActivePoll(showId, viewerId);
@@ -376,12 +396,39 @@ export default function EmbedLiveViewerPage() {
     },
   }[locale];
 
-  if (showLoading || !show) {
+  if (showLoading || !show || (isPrivateShow && isPrivateValidating)) {
     return (
       <div className="fixed inset-0 bg-black flex items-center justify-center">
         <div className="animate-spin w-8 h-8 border-2 border-white border-t-transparent rounded-full" />
       </div>
     );
+  }
+
+  // Redirect to registration if needed for private shows
+  if (needsRegistration && pendingToken) {
+    // In embed mode, show a message to complete registration
+    return (
+      <div className="fixed inset-0 bg-gradient-to-b from-gray-900 to-black flex flex-col items-center justify-center p-6 text-center">
+        <div className="w-16 h-16 mx-auto mb-4 rounded-full bg-pink-500/20 flex items-center justify-center">
+          <svg className="w-8 h-8 text-pink-400" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+            <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M16 7a4 4 0 11-8 0 4 4 0 018 0zM12 14a7 7 0 00-7 7h14a7 7 0 00-7-7z" />
+          </svg>
+        </div>
+        <h1 className="text-xl font-bold text-white mb-2">Complete Your Registration</h1>
+        <p className="text-white/60 mb-6">Please complete your registration to join this private auction.</p>
+        <a
+          href={`/invite/${pendingToken}?embed=true`}
+          className="px-6 py-3 bg-pink-500 hover:bg-pink-600 text-white font-medium rounded-full transition-colors"
+        >
+          Register Now
+        </a>
+      </div>
+    );
+  }
+
+  // Access control for private shows
+  if (isPrivateShow && !isPrivateAuthorized) {
+    return <PrivateShowAccessDenied showTitle={show.title} />;
   }
 
   // Pre-show state (scheduled)
@@ -554,7 +601,7 @@ export default function EmbedLiveViewerPage() {
             auctionInfo={getAuctionInfo(activeProduct)}
             onPlaceBid={handlePlaceBid}
             onRegisterBidder={() => setShowBidderRegistration(true)}
-            isRegisteredBidder={isRegisteredBidder}
+            isRegisteredBidder={isRegisteredBidder || isPreRegisteredBidder}
             bidError={bidError}
           />
         )}

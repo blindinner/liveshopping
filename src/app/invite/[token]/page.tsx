@@ -1,7 +1,7 @@
 'use client';
 
 import { useEffect, useState } from 'react';
-import { useParams, useRouter } from 'next/navigation';
+import { useParams, useRouter, useSearchParams } from 'next/navigation';
 import { InvitationAcceptForm } from '@/components/viewer/InvitationAcceptForm';
 import type { Show, GuestProfile } from '@/types/database';
 
@@ -19,7 +19,9 @@ interface InvitationData {
 export default function InvitationPage() {
   const params = useParams();
   const router = useRouter();
+  const searchParams = useSearchParams();
   const token = params.token as string;
+  const isEmbedded = searchParams.get('embed') === 'true';
 
   const [data, setData] = useState<InvitationData | null>(null);
   const [error, setError] = useState<string | null>(null);
@@ -42,9 +44,14 @@ export default function InvitationPage() {
 
       const invitationData = await response.json();
 
-      // If already accepted, redirect to confirmation page
+      // If already accepted, redirect to appropriate page
       if (invitationData.invitation.status === 'accepted') {
-        router.push(`/invite/${token}/accepted`);
+        if (isEmbedded) {
+          // In embed mode, go directly to the live embed
+          router.push(`/embed/${invitationData.show.id}?token=${token}`);
+        } else {
+          router.push(`/invite/${token}/accepted`);
+        }
         return;
       }
 
@@ -81,9 +88,12 @@ export default function InvitationPage() {
         throw new Error(errorData.error || 'Failed to accept invitation');
       }
 
-      // If show is live, go directly to the live show
-      // Otherwise, go to the confirmation page with calendar options
-      if (data?.show.status === 'live') {
+      // Determine where to redirect after registration
+      if (isEmbedded) {
+        // In embed mode, always go to the embed viewer
+        router.push(`/embed/${data.show.id}?token=${token}`);
+      } else if (data?.show.status === 'live') {
+        // If show is live, go directly to the live show
         // Use embed_url if configured
         if (data.show.embed_url) {
           const url = new URL(data.show.embed_url);
@@ -93,6 +103,7 @@ export default function InvitationPage() {
           router.push(`/live/${data.show.id}?token=${token}`);
         }
       } else {
+        // Otherwise, go to the confirmation page with calendar options
         router.push(`/invite/${token}/accepted`);
       }
     } catch (err) {
