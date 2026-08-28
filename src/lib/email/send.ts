@@ -29,14 +29,19 @@ export async function sendInvitationEmail({
   baseUrl,
   embedUrl,
 }: SendInvitationEmailParams): Promise<{ success: boolean; error?: string }> {
-  const inviteUrl = `${baseUrl}/invite/${inviteToken}`;
-  // Use embed URL for join link if configured
+  // Use embed URL if configured - the widget will handle registration
+  let inviteUrl: string;
   let joinUrl: string;
+
   if (embedUrl) {
     const url = new URL(embedUrl);
     url.searchParams.set('token', inviteToken);
+    // Both links point to the embed URL - widget handles everything
+    inviteUrl = url.toString();
     joinUrl = url.toString();
   } else {
+    // Fallback to our domain
+    inviteUrl = `${baseUrl}/invite/${inviteToken}`;
     joinUrl = `${baseUrl}/live/${showId}?token=${inviteToken}`;
   }
 
