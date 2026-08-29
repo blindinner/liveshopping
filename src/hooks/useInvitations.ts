@@ -116,6 +116,28 @@ export function useInvitations(showId: string) {
     }
   }, [showId, fetchInvitations]);
 
+  // Send email to all pending invitations
+  const sendAllEmails = useCallback(async (): Promise<{ sent: number; failed: number; total: number }> => {
+    try {
+      const response = await fetch(`/api/shows/${showId}/invitations/send-all`, {
+        method: 'POST',
+      });
+
+      if (!response.ok) {
+        const error = await response.json();
+        throw new Error(error.error || 'Failed to send emails');
+      }
+
+      const result = await response.json();
+      // Refresh to get updated sent_at
+      fetchInvitations();
+      return { sent: result.sent || 0, failed: result.failed || 0, total: result.total || 0 };
+    } catch (err) {
+      console.error('Send all emails error:', err);
+      throw err;
+    }
+  }, [showId, fetchInvitations]);
+
   // Get invite URL
   const getInviteUrl = useCallback((invitation: Invitation): string => {
     if (typeof window === 'undefined') return '';
@@ -135,6 +157,7 @@ export function useInvitations(showId: string) {
     addInvitations,
     removeInvitation,
     resendInvitation,
+    sendAllEmails,
     getInviteUrl,
     copyInviteLink,
     refresh: fetchInvitations,

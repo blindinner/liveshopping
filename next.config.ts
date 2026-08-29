@@ -18,6 +18,11 @@ const nextConfig: NextConfig = {
         hostname: '*.cloudflarestream.com',
         pathname: '/**',
       },
+      {
+        protocol: 'https',
+        hostname: '*.supabase.co',
+        pathname: '/storage/**',
+      },
     ],
   },
   // Headers for embedding

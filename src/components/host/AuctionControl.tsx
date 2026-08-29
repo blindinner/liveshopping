@@ -1,8 +1,8 @@
 'use client';
 
-import { useState, useEffect } from 'react';
+import { useState, useEffect, useCallback } from 'react';
 import { createClient } from '@/lib/supabase/client';
-import type { ShowProduct, Bid, Bidder } from '@/types/database';
+import type { ShowProduct, Bid } from '@/types/database';
 
 interface AuctionControlProps {
   showProduct: ShowProduct;
@@ -14,10 +14,51 @@ export function AuctionControl({ showProduct, showId, onAuctionUpdate }: Auction
   const [bids, setBids] = useState<Bid[]>([]);
   const [isLoading, setIsLoading] = useState(true);
   const [isUpdating, setIsUpdating] = useState(false);
+  const [timeRemaining, setTimeRemaining] = useState<number | null>(null);
 
   const currentBid = bids.length > 0 ? bids[0].amount : null;
   const highestBidder = bids.length > 0 ? bids[0].bidder : null;
   const bidCount = bids.length;
+
+  // Timer countdown
+  useEffect(() => {
+    if (
+      showProduct.auction_status !== 'active' ||
+      !showProduct.auction_duration_seconds ||
+      !showProduct.auction_started_at
+    ) {
+      setTimeRemaining(null);
+      return;
+    }
+
+    const calculateRemaining = () => {
+      const startTime = new Date(showProduct.auction_started_at!).getTime();
+      const endTime = startTime + showProduct.auction_duration_seconds! * 1000;
+      const now = Date.now();
+      const remaining = Math.max(0, Math.floor((endTime - now) / 1000));
+      return remaining;
+    };
+
+    setTimeRemaining(calculateRemaining());
+
+    const interval = setInterval(() => {
+      const remaining = calculateRemaining();
+      setTimeRemaining(remaining);
+
+      // Auto-end auction when timer reaches 0
+      if (remaining === 0) {
+        clearInterval(interval);
+      }
+    }, 1000);
+
+    return () => clearInterval(interval);
+  }, [showProduct.auction_status, showProduct.auction_duration_seconds, showProduct.auction_started_at]);
+
+  const formatTime = (seconds: number): string => {
+    const mins = Math.floor(seconds / 60);
+    const secs = seconds % 60;
+    return `${mins}:${secs.toString().padStart(2, '0')}`;
+  };
 
   // Load bids
   useEffect(() => {
@@ -63,14 +104,21 @@ export function AuctionControl({ showProduct, showId, onAuctionUpdate }: Auction
   const startAuction = async () => {
     setIsUpdating(true);
     try {
+      const now = new Date().toISOString();
       const response = await fetch(`/api/shows/${showId}/products/${showProduct.id}`, {
         method: 'PATCH',
         headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ auction_status: 'active' }),
+        body: JSON.stringify({
+          auction_status: 'active',
+          auction_started_at: now,
+        }),
       });
 
       if (response.ok) {
-        onAuctionUpdate({ auction_status: 'active' });
+        onAuctionUpdate({
+          auction_status: 'active',
+          auction_started_at: now,
+        });
       }
     } catch (error) {
       console.error('Failed to start auction:', error);
@@ -128,6 +176,39 @@ export function AuctionControl({ showProduct, showId, onAuctionUpdate }: Auction
            showProduct.auction_status === 'ended' ? 'Ended' : 'Pending'}
         </span>
       </div>
+
+      {/* Timer Display */}
+      {showProduct.auction_status === 'active' && timeRemaining !== null && (
+        <div className={`mb-4 p-4 rounded-lg text-center ${
+          timeRemaining <= 10 ? 'bg-red-500/30 border border-red-500' : 'bg-black/30'
+        }`}>
+          <p className="text-white/50 text-xs mb-1">Time Remaining</p>
+          <p className={`text-4xl font-mono font-bold ${
+            timeRemaining <= 10 ? 'text-red-400 animate-pulse' : 'text-white'
+          }`}>
+            {formatTime(timeRemaining)}
+          </p>
+          {timeRemaining === 0 && (
+            <p className="text-red-400 text-sm mt-2 font-medium">
+              Time's up! End the auction to declare winner.
+            </p>
+          )}
+        </div>
+      )}
+
+      {/* Pending auction with timer info */}
+      {showProduct.auction_status === 'pending' && showProduct.auction_duration_seconds && (
+        <div className="mb-4 p-3 bg-orange-500/10 border border-orange-500/20 rounded-lg">
+          <div className="flex items-center gap-2">
+            <svg className="w-4 h-4 text-orange-400" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+              <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 8v4l3 3m6-3a9 9 0 11-18 0 9 9 0 0118 0z" />
+            </svg>
+            <span className="text-orange-300 text-sm">
+              {formatTime(showProduct.auction_duration_seconds)} countdown will start when auction begins
+            </span>
+          </div>
+        </div>
+      )}
 
       <div className="grid grid-cols-3 gap-4 mb-4">
         <div className="bg-black/20 rounded-lg p-3">

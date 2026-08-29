@@ -29,6 +29,8 @@ export interface Show {
   cloudflare_playback_id: string | null;
   cloudflare_webrtc_url: string | null; // Host-only - WHIP URL for browser streaming
   embed_url: string | null; // Optional URL where show is embedded (for white-label redirects)
+  invitation_email_subject: string | null; // Custom subject for invitation emails
+  invitation_email_body: string | null; // Custom body for invitation emails
   _brandDomain?: string | null; // Populated by useShowStatus hook from brand.shopify_domain
   _brandWebsiteUrl?: string | null; // Populated by useShowStatus hook from brand.website_url
   started_at: string | null;
@@ -71,7 +73,9 @@ export interface ShowProduct {
   sale_type: SaleType;
   starting_price: number | null;
   bid_increment: number | null;
+  auction_duration_seconds: number | null;
   auction_status: AuctionStatus | null;
+  auction_started_at: string | null;
   auction_ended_at: string | null;
   winner_bidder_id: string | null;
   // Joined product data
@@ -197,7 +201,7 @@ export interface GuestProfile {
 }
 
 // Invitation status for private auctions
-export type InvitationStatus = 'pending' | 'accepted' | 'declined';
+export type InvitationStatus = 'pending' | 'sent' | 'accepted' | 'declined';
 
 // Invitation for private auctions
 export interface Invitation {
@@ -369,13 +373,10 @@ export interface ScheduledEmail {
 // Email offset presets for UI
 export const EMAIL_OFFSET_PRESETS = [
   { label: '7 days before', minutes: -7 * 24 * 60 },
+  { label: '5 days before', minutes: -5 * 24 * 60 },
   { label: '3 days before', minutes: -3 * 24 * 60 },
+  { label: '2 days before', minutes: -2 * 24 * 60 },
   { label: '1 day before', minutes: -24 * 60 },
-  { label: '12 hours before', minutes: -12 * 60 },
-  { label: '2 hours before', minutes: -2 * 60 },
-  { label: '1 hour before', minutes: -60 },
-  { label: '30 minutes before', minutes: -30 },
-  { label: '15 minutes before', minutes: -15 },
 ] as const;
 
 export type EmailOffsetPreset = typeof EMAIL_OFFSET_PRESETS[number];

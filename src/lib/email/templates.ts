@@ -8,6 +8,26 @@ interface InvitationEmailProps {
   showDate: Date;
   inviteUrl: string;
   joinUrl: string; // The URL to join the live stream
+  customSubject?: string | null; // Custom subject line
+  customBody?: string | null; // Custom email body
+}
+
+// Helper to replace template variables in custom content
+function replaceTemplateVariables(text: string, showTitle: string, formattedDate: string): string {
+  return text
+    .replace(/\{\{show_title\}\}/g, showTitle)
+    .replace(/\{\{show_date\}\}/g, formattedDate);
+}
+
+// Get the email subject (custom or default)
+export function getInvitationEmailSubject({
+  showTitle,
+  customSubject,
+}: Pick<InvitationEmailProps, 'showTitle' | 'customSubject'>): string {
+  if (customSubject) {
+    return replaceTemplateVariables(customSubject, showTitle, '');
+  }
+  return `You're Invited to ${showTitle}`;
 }
 
 export function getInvitationEmailHtml({
@@ -15,6 +35,7 @@ export function getInvitationEmailHtml({
   showDate,
   inviteUrl,
   joinUrl,
+  customBody,
 }: InvitationEmailProps): string {
   const formattedDate = new Intl.DateTimeFormat('en-US', {
     weekday: 'long',
@@ -24,6 +45,14 @@ export function getInvitationEmailHtml({
     hour: '2-digit',
     minute: '2-digit',
   }).format(showDate);
+
+  // Process custom body if provided
+  const customMessage = customBody
+    ? replaceTemplateVariables(customBody, showTitle, formattedDate)
+      .split('\n')
+      .map(line => `<p style="margin: 0 0 12px; color: #d1d5db; font-size: 14px; line-height: 1.6;">${line || '&nbsp;'}</p>`)
+      .join('')
+    : null;
 
   const calendarUrl = getGoogleCalendarUrl({
     title: `Private Auction: ${showTitle}`,
@@ -54,11 +83,25 @@ export function getInvitationEmailHtml({
               <h1 style="margin: 0; color: #ffffff; font-size: 24px; font-weight: 600;">
                 You're Invited!
               </h1>
-              <p style="margin: 10px 0 0; color: #9ca3af; font-size: 14px;">
+            </td>
+          </tr>
+
+          ${customMessage ? `
+          <!-- Custom Message -->
+          <tr>
+            <td style="padding: 0 40px 20px;">
+              ${customMessage}
+            </td>
+          </tr>
+          ` : `
+          <tr>
+            <td style="padding: 0 40px 20px; text-align: center;">
+              <p style="margin: 0; color: #9ca3af; font-size: 14px;">
                 You've been invited to a private auction
               </p>
             </td>
           </tr>
+          `}
 
           <!-- Show Details -->
           <tr>
@@ -92,7 +135,8 @@ export function getInvitationEmailHtml({
             </td>
           </tr>
 
-          <!-- Instructions -->
+          ${!customMessage ? `
+          <!-- Instructions (only show if no custom message) -->
           <tr>
             <td style="padding: 0 40px 30px;">
               <p style="margin: 0; color: #9ca3af; font-size: 13px; line-height: 1.6;">
@@ -100,6 +144,7 @@ export function getInvitationEmailHtml({
               </p>
             </td>
           </tr>
+          ` : ''}
 
           <!-- Footer -->
           <tr>
@@ -123,6 +168,7 @@ export function getInvitationEmailText({
   showDate,
   inviteUrl,
   joinUrl,
+  customBody,
 }: InvitationEmailProps): string {
   const formattedDate = new Intl.DateTimeFormat('en-US', {
     weekday: 'long',
@@ -140,10 +186,15 @@ export function getInvitationEmailText({
     durationMinutes: 60,
   });
 
+  // Process custom body if provided
+  const customMessage = customBody
+    ? replaceTemplateVariables(customBody, showTitle, formattedDate)
+    : null;
+
   return `
 You're Invited!
 
-You've been invited to a private auction.
+${customMessage || "You've been invited to a private auction."}
 
 ${showTitle}
 ${formattedDate}
@@ -154,9 +205,7 @@ ${inviteUrl}
 Add to Calendar:
 ${calendarUrl}
 
-You'll need to provide your billing information so we can send you an invoice if you win any auctions.
-
-If you didn't expect this invitation, you can safely ignore this email.
+${!customMessage ? "You'll need to provide your billing information so we can send you an invoice if you win any auctions.\n\n" : ""}If you didn't expect this invitation, you can safely ignore this email.
   `.trim();
 }
 

@@ -46,13 +46,19 @@ const navItems = [
 // Pages that should NOT have the sidebar (full-screen pages)
 const fullScreenRoutes: string[] = [];
 
-// Check if current path is a show control panel (e.g., /host/abc-123-def)
+// Check if current path is a show page (e.g., /host/abc-123-def, /host/abc-123-def/setup, /host/abc-123-def/live)
 const isShowPage = (pathname: string) => {
-  // Match /host/[uuid] but not /host/videos, /host/integrations, /host/widgets, /host/stats
+  // Match /host/[showId] and /host/[showId]/setup, /host/[showId]/live
+  // But not /host/videos, /host/integrations, /host/widgets, /host/stats
   const segments = pathname.split('/').filter(Boolean);
-  if (segments.length === 2 && segments[0] === 'host') {
+  if (segments.length >= 2 && segments[0] === 'host') {
     const secondSegment = segments[1];
-    return !['videos', 'integrations', 'widgets', 'stats'].includes(secondSegment);
+    // Exclude known dashboard routes
+    if (['videos', 'integrations', 'widgets', 'stats', 'new'].includes(secondSegment)) {
+      return false;
+    }
+    // This is a show page (showId or showId/setup or showId/live)
+    return true;
   }
   return false;
 };

@@ -1,9 +1,18 @@
 'use client';
 
-import { useState } from 'react';
+import { useState, useRef } from 'react';
 import { useEmailSequences, SequenceWithStats } from '@/hooks/useEmailSequences';
 import { Button } from '@/components/ui/Button';
 import { EMAIL_OFFSET_PRESETS } from '@/types/database';
+
+// Template variables available for emails
+const TEMPLATE_VARIABLES = [
+  { key: 'recipient_name', label: 'Recipient Name', forSubject: true, forBody: true },
+  { key: 'show_title', label: 'Show Title', forSubject: true, forBody: true },
+  { key: 'show_date', label: 'Show Date', forSubject: true, forBody: true },
+  { key: 'join_url', label: 'Join URL', forSubject: false, forBody: true },
+  { key: 'calendar_url', label: 'Calendar URL', forSubject: false, forBody: true },
+] as const;
 
 interface EmailSequenceManagerProps {
   showId: string;
@@ -57,21 +66,58 @@ export function EmailSequenceManager({ showId, showScheduledAt }: EmailSequenceM
   const [editingId, setEditingId] = useState<string | null>(null);
   const [isSubmitting, setIsSubmitting] = useState(false);
   const [feedback, setFeedback] = useState<{ type: 'success' | 'error'; message: string } | null>(null);
+  const [activeField, setActiveField] = useState<'subject' | 'body' | null>(null);
+
+  // Refs for input fields
+  const subjectRef = useRef<HTMLInputElement>(null);
+  const bodyRef = useRef<HTMLTextAreaElement>(null);
 
   // Form state
   const [formData, setFormData] = useState({
     name: '',
     subject: '',
     body_html: '',
-    send_offset_minutes: -60,
+    send_offset_minutes: -24 * 60,
   });
+
+  // Insert variable at cursor position
+  const insertVariable = (variable: string) => {
+    const tag = `{{${variable}}}`;
+
+    if (activeField === 'subject' && subjectRef.current) {
+      const input = subjectRef.current;
+      const start = input.selectionStart || 0;
+      const end = input.selectionEnd || 0;
+      const newValue = formData.subject.slice(0, start) + tag + formData.subject.slice(end);
+      setFormData({ ...formData, subject: newValue });
+      // Restore cursor position after React re-render
+      setTimeout(() => {
+        input.focus();
+        input.setSelectionRange(start + tag.length, start + tag.length);
+      }, 0);
+    } else if (activeField === 'body' && bodyRef.current) {
+      const textarea = bodyRef.current;
+      const start = textarea.selectionStart || 0;
+      const end = textarea.selectionEnd || 0;
+      const newValue = formData.body_html.slice(0, start) + tag + formData.body_html.slice(end);
+      setFormData({ ...formData, body_html: newValue });
+      setTimeout(() => {
+        textarea.focus();
+        textarea.setSelectionRange(start + tag.length, start + tag.length);
+      }, 0);
+    } else {
+      // No field focused, append to body by default
+      setFormData({ ...formData, body_html: formData.body_html + tag });
+      bodyRef.current?.focus();
+    }
+  };
 
   const resetForm = () => {
     setFormData({
       name: '',
       subject: '',
       body_html: '',
-      send_offset_minutes: -60,
+      send_offset_minutes: -24 * 60,
     });
     setShowForm(false);
     setEditingId(null);
@@ -183,28 +229,52 @@ export function EmailSequenceManager({ showId, showScheduledAt }: EmailSequenceM
             <div>
               <label className="block text-xs text-white/60 mb-1">Subject Line</label>
               <input
+                ref={subjectRef}
                 type="text"
                 value={formData.subject}
                 onChange={(e) => setFormData({ ...formData, subject: e.target.value })}
+                onFocus={() => setActiveField('subject')}
                 placeholder="e.g., Reminder: {{show_title}} is tomorrow!"
                 className="w-full px-3 py-2 bg-white/5 border border-white/10 rounded-lg text-white placeholder-white/40 focus:outline-none focus:border-pink-500 text-sm"
               />
-              <p className="text-xs text-white/40 mt-1">
-                Variables: {'{{recipient_name}}, {{show_title}}, {{show_date}}'}
-              </p>
             </div>
 
             <div>
               <label className="block text-xs text-white/60 mb-1">Email Body (HTML)</label>
               <textarea
+                ref={bodyRef}
                 value={formData.body_html}
                 onChange={(e) => setFormData({ ...formData, body_html: e.target.value })}
+                onFocus={() => setActiveField('body')}
                 placeholder="Enter HTML email content..."
                 rows={6}
                 className="w-full px-3 py-2 bg-white/5 border border-white/10 rounded-lg text-white placeholder-white/40 focus:outline-none focus:border-pink-500 text-sm font-mono resize-none"
               />
-              <p className="text-xs text-white/40 mt-1">
-                Variables: {'{{recipient_name}}, {{show_title}}, {{show_date}}, {{join_url}}, {{calendar_url}}'}
+            </div>
+
+            {/* Template Variables */}
+            <div>
+              <label className="block text-xs text-white/60 mb-2">
+                Click to insert variable {activeField ? `into ${activeField === 'subject' ? 'Subject' : 'Body'}` : ''}
+              </label>
+              <div className="flex flex-wrap gap-2">
+                {TEMPLATE_VARIABLES.filter(v =>
+                  activeField === 'subject' ? v.forSubject : true
+                ).map((variable) => (
+                  <button
+                    key={variable.key}
+                    type="button"
+                    onClick={() => insertVariable(variable.key)}
+                    className="px-2 py-1 text-xs bg-pink-500/20 hover:bg-pink-500/30 text-pink-300 rounded-md border border-pink-500/30 transition-colors"
+                  >
+                    {`{{${variable.key}}}`}
+                  </button>
+                ))}
+              </div>
+              <p className="text-xs text-white/40 mt-2">
+                {activeField === 'subject'
+                  ? 'Subject supports: name, title, date'
+                  : 'Body also supports: join_url, calendar_url'}
               </p>
             </div>
 

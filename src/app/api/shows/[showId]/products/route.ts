@@ -55,6 +55,11 @@ export async function POST(
       brandId,
       source = 'shopify',
       checkoutUrl,
+      sale_type = 'buy_now',
+      starting_price,
+      bid_increment,
+      auction_duration_seconds,
+      auction_status,
     } = body;
 
     // Use service client to insert product (may need to bypass RLS for cross-table operations)
@@ -151,20 +156,29 @@ export async function POST(
 
     const nextOrder = (existingProducts?.[0]?.display_order ?? -1) + 1;
 
+    // Build show_product data
+    const showProductData: Record<string, unknown> = {
+      show_id: showId,
+      product_id: product.id,
+      display_order: nextOrder,
+      is_active: false,
+      sale_type: sale_type || 'buy_now',
+    };
+
+    // Add auction settings if provided
+    if (sale_type === 'auction') {
+      showProductData.starting_price = starting_price ?? null;
+      showProductData.bid_increment = bid_increment ?? null;
+      showProductData.auction_duration_seconds = auction_duration_seconds ?? null;
+      showProductData.auction_status = auction_status || 'pending';
+    }
+
     // Add to show_products
     const { data: showProduct, error: showProductError } = await serviceClient
       .from('show_products')
-      .upsert(
-        {
-          show_id: showId,
-          product_id: product.id,
-          display_order: nextOrder,
-          is_active: false,
-        },
-        {
-          onConflict: 'show_id,product_id',
-        }
-      )
+      .upsert(showProductData, {
+        onConflict: 'show_id,product_id',
+      })
       .select('*, product:products(*)')
       .single();
 

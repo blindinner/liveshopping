@@ -91,12 +91,14 @@ export function useEmailSequences(showId: string) {
       }
 
       const result = await response.json();
+      // Refresh list after creation
+      fetchSequences();
       return result.sequence;
     } catch (err) {
       console.error('Create sequence error:', err);
       throw err;
     }
-  }, [showId]);
+  }, [showId, fetchSequences]);
 
   // Update sequence
   const updateSequence = useCallback(async (
@@ -123,12 +125,14 @@ export function useEmailSequences(showId: string) {
       }
 
       const result = await response.json();
+      // Refresh list after update
+      fetchSequences();
       return result.sequence;
     } catch (err) {
       console.error('Update sequence error:', err);
       throw err;
     }
-  }, [showId]);
+  }, [showId, fetchSequences]);
 
   // Delete sequence
   const deleteSequence = useCallback(async (sequenceId: string): Promise<void> => {
@@ -141,11 +145,13 @@ export function useEmailSequences(showId: string) {
         const error = await response.json();
         throw new Error(error.error || 'Failed to delete sequence');
       }
+      // Refresh list after delete
+      fetchSequences();
     } catch (err) {
       console.error('Delete sequence error:', err);
       throw err;
     }
-  }, [showId]);
+  }, [showId, fetchSequences]);
 
   // Toggle enabled
   const toggleEnabled = useCallback(async (sequenceId: string, enabled: boolean): Promise<void> => {

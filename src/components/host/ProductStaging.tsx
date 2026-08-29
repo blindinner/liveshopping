@@ -20,6 +20,10 @@ interface ManualProductForm {
   currency: string;
   imageUrl: string;
   checkoutUrl: string;
+  saleType: SaleType;
+  startingPrice: string;
+  bidIncrement: string;
+  auctionDuration: string;
 }
 
 const emptyManualProduct: ManualProductForm = {
@@ -28,6 +32,10 @@ const emptyManualProduct: ManualProductForm = {
   currency: 'ILS',
   imageUrl: '',
   checkoutUrl: '',
+  saleType: 'buy_now',
+  startingPrice: '',
+  bidIncrement: '',
+  auctionDuration: '',
 };
 
 interface ProductStagingProps {
@@ -38,6 +46,7 @@ interface ProductStagingProps {
   activeProductId?: string;
   onSelectActive: (productId: string, activate: boolean) => void;
   isTogglingProduct?: boolean;
+  defaultSaleType?: SaleType;
 }
 
 export function ProductStaging({
@@ -48,6 +57,7 @@ export function ProductStaging({
   activeProductId,
   onSelectActive,
   isTogglingProduct,
+  defaultSaleType = 'buy_now',
 }: ProductStagingProps) {
   const [storeProducts, setStoreProducts] = useState<ShopifyProduct[]>([]);
   const [isLoading, setIsLoading] = useState(true);
@@ -59,12 +69,16 @@ export function ProductStaging({
     sale_type: 'buy_now' as SaleType,
     starting_price: '',
     bid_increment: '',
+    auction_duration_seconds: '',
   });
   const [showManualForm, setShowManualForm] = useState(false);
   const [manualProduct, setManualProduct] = useState<ManualProductForm>(emptyManualProduct);
   const [isAddingManual, setIsAddingManual] = useState(false);
   const [isUploadingCsv, setIsUploadingCsv] = useState(false);
   const [csvError, setCsvError] = useState<string | null>(null);
+  const [isUploadingImage, setIsUploadingImage] = useState(false);
+  const [imagePreview, setImagePreview] = useState<string | null>(null);
+  const [isDragging, setIsDragging] = useState(false);
 
   // Load all products from store on mount
   useEffect(() => {
@@ -110,12 +124,18 @@ export function ProductStaging({
           imageUrl: product.image_url,
           brandId,
           displayOrder: showProducts.length,
+          sale_type: defaultSaleType,
         }),
       });
 
       if (response.ok) {
         const { showProduct } = await response.json();
         onProductsChange([...showProducts, showProduct]);
+
+        // Auto-open auction settings when adding in auction mode
+        if (defaultSaleType === 'auction') {
+          setTimeout(() => startEditingAuction(showProduct, true), 100);
+        }
       }
     } catch (error) {
       console.error('Failed to add product:', error);
@@ -211,12 +231,14 @@ export function ProductStaging({
   };
 
   // Open auction settings editor
-  const startEditingAuction = (sp: ShowProduct) => {
+  const startEditingAuction = (sp: ShowProduct, useDefault = false) => {
     setEditingAuctionId(sp.id);
+    const saleType = useDefault ? defaultSaleType : (sp.sale_type || 'buy_now');
     setAuctionSettings({
-      sale_type: sp.sale_type || 'buy_now',
+      sale_type: saleType,
       starting_price: sp.starting_price?.toString() || '',
       bid_increment: sp.bid_increment?.toString() || '',
+      auction_duration_seconds: (sp as ShowProduct & { auction_duration_seconds?: number }).auction_duration_seconds?.toString() || '',
     });
   };
 
@@ -236,10 +258,14 @@ export function ProductStaging({
         updates.bid_increment = auctionSettings.bid_increment
           ? parseFloat(auctionSettings.bid_increment)
           : null;
+        updates.auction_duration_seconds = auctionSettings.auction_duration_seconds
+          ? parseInt(auctionSettings.auction_duration_seconds)
+          : null;
         updates.auction_status = 'pending';
       } else {
         updates.starting_price = null;
         updates.bid_increment = null;
+        updates.auction_duration_seconds = null;
         updates.auction_status = null;
       }
 
@@ -270,6 +296,7 @@ export function ProductStaging({
         sale_type: 'buy_now',
         starting_price: '',
         bid_increment: '',
+        auction_duration_seconds: '',
       });
     }
   };
@@ -281,38 +308,75 @@ export function ProductStaging({
       sale_type: 'buy_now',
       starting_price: '',
       bid_increment: '',
+      auction_duration_seconds: '',
     });
+  };
+
+  // Check if manual product form is valid
+  const isManualProductValid = () => {
+    if (!manualProduct.title || !manualProduct.price) return false;
+    if (manualProduct.saleType === 'auction') {
+      return !!manualProduct.startingPrice && !!manualProduct.bidIncrement;
+    }
+    return true;
   };
 
   // Add manual product
   const addManualProduct = async () => {
-    if (!brandId || !manualProduct.title || !manualProduct.price) return;
+    if (!brandId) {
+      setCsvError('Brand ID is required. Please refresh the page.');
+      return;
+    }
+    if (!isManualProductValid()) {
+      setCsvError('Please fill in all required fields.');
+      return;
+    }
     setIsAddingManual(true);
+    setCsvError(null);
 
     try {
+      const payload: Record<string, unknown> = {
+        title: manualProduct.title,
+        price: parseFloat(manualProduct.price),
+        currency: manualProduct.currency,
+        imageUrl: manualProduct.imageUrl || null,
+        checkoutUrl: manualProduct.saleType === 'buy_now' ? (manualProduct.checkoutUrl || null) : null,
+        brandId,
+        source: 'manual',
+        displayOrder: showProducts.length,
+        sale_type: manualProduct.saleType,
+      };
+
+      // Add auction settings if auction type
+      if (manualProduct.saleType === 'auction') {
+        payload.starting_price = parseFloat(manualProduct.startingPrice);
+        payload.bid_increment = parseFloat(manualProduct.bidIncrement);
+        payload.auction_duration_seconds = manualProduct.auctionDuration
+          ? parseInt(manualProduct.auctionDuration)
+          : null;
+        payload.auction_status = 'pending';
+      }
+
       const response = await fetch(`/api/shows/${showId}/products`, {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({
-          title: manualProduct.title,
-          price: parseFloat(manualProduct.price),
-          currency: manualProduct.currency,
-          imageUrl: manualProduct.imageUrl || null,
-          checkoutUrl: manualProduct.checkoutUrl || null,
-          brandId,
-          source: 'manual',
-          displayOrder: showProducts.length,
-        }),
+        body: JSON.stringify(payload),
       });
 
+      const data = await response.json();
+
       if (response.ok) {
-        const { showProduct } = await response.json();
-        onProductsChange([...showProducts, showProduct]);
+        onProductsChange([...showProducts, data.showProduct]);
         setManualProduct(emptyManualProduct);
+        setImagePreview(null);
         setShowManualForm(false);
+      } else {
+        console.error('Failed to add manual product:', data.error);
+        setCsvError(data.error || 'Failed to add product');
       }
     } catch (error) {
       console.error('Failed to add manual product:', error);
+      setCsvError('Failed to add product. Please try again.');
     } finally {
       setIsAddingManual(false);
     }
@@ -365,6 +429,10 @@ export function ProductStaging({
           currency: currencyIdx !== -1 ? values[currencyIdx]?.trim() || 'ILS' : 'ILS',
           imageUrl: imageIdx !== -1 ? values[imageIdx]?.trim() || '' : '',
           checkoutUrl: checkoutIdx !== -1 ? values[checkoutIdx]?.trim() || '' : '',
+          saleType: 'buy_now',
+          startingPrice: '',
+          bidIncrement: '',
+          auctionDuration: '',
         });
       }
 
@@ -409,6 +477,72 @@ export function ProductStaging({
     } finally {
       setIsUploadingCsv(false);
     }
+  };
+
+  // Handle image upload
+  const handleImageUpload = async (file: File) => {
+    if (!file.type.startsWith('image/')) {
+      setCsvError('Please upload an image file');
+      return;
+    }
+
+    if (file.size > 5 * 1024 * 1024) {
+      setCsvError('Image must be less than 5MB');
+      return;
+    }
+
+    setIsUploadingImage(true);
+    setCsvError(null);
+
+    try {
+      const formData = new FormData();
+      formData.append('file', file);
+
+      const response = await fetch('/api/upload/product-image', {
+        method: 'POST',
+        body: formData,
+      });
+
+      if (!response.ok) {
+        const data = await response.json();
+        throw new Error(data.error || 'Upload failed');
+      }
+
+      const { url } = await response.json();
+      setManualProduct({ ...manualProduct, imageUrl: url });
+      setImagePreview(url);
+    } catch (error) {
+      console.error('Image upload error:', error);
+      setCsvError(error instanceof Error ? error.message : 'Failed to upload image');
+    } finally {
+      setIsUploadingImage(false);
+    }
+  };
+
+  // Handle drag and drop
+  const handleDragOver = (e: React.DragEvent) => {
+    e.preventDefault();
+    setIsDragging(true);
+  };
+
+  const handleDragLeave = (e: React.DragEvent) => {
+    e.preventDefault();
+    setIsDragging(false);
+  };
+
+  const handleDrop = (e: React.DragEvent) => {
+    e.preventDefault();
+    setIsDragging(false);
+    const file = e.dataTransfer.files[0];
+    if (file) {
+      handleImageUpload(file);
+    }
+  };
+
+  // Clear image
+  const clearImage = () => {
+    setManualProduct({ ...manualProduct, imageUrl: '' });
+    setImagePreview(null);
   };
 
   // Helper to parse CSV line (handles quoted values with commas)
@@ -698,6 +832,40 @@ export function ProductStaging({
                                 <p className="text-white/40 text-xs mt-1">Min increase per bid</p>
                               </div>
                             </div>
+
+                            {/* Auction Timer */}
+                            <div>
+                              <label className="block text-white/70 text-xs mb-1">
+                                Auction Timer (optional)
+                              </label>
+                              <div className="flex gap-2">
+                                {[
+                                  { label: 'No timer', value: '' },
+                                  { label: '30 sec', value: '30' },
+                                  { label: '1 min', value: '60' },
+                                  { label: '2 min', value: '120' },
+                                  { label: '5 min', value: '300' },
+                                ].map((option) => (
+                                  <button
+                                    key={option.value}
+                                    type="button"
+                                    onClick={() => setAuctionSettings({ ...auctionSettings, auction_duration_seconds: option.value })}
+                                    className={`flex-1 px-2 py-2 rounded-lg text-xs font-medium transition-colors ${
+                                      auctionSettings.auction_duration_seconds === option.value
+                                        ? 'bg-orange-500 text-white'
+                                        : 'bg-white/10 text-white/70 hover:bg-white/20'
+                                    }`}
+                                  >
+                                    {option.label}
+                                  </button>
+                                ))}
+                              </div>
+                              <p className="text-white/40 text-xs mt-1">
+                                {auctionSettings.auction_duration_seconds
+                                  ? 'Countdown starts when you activate the auction'
+                                  : 'You control when the auction ends manually'}
+                              </p>
+                            </div>
                           </>
                         )}
 
@@ -768,7 +936,14 @@ export function ProductStaging({
               />
             </label>
             <button
-              onClick={() => setShowManualForm(!showManualForm)}
+              onClick={() => {
+                setShowManualForm(!showManualForm);
+                setCsvError(null);
+                if (showManualForm) {
+                  setManualProduct(emptyManualProduct);
+                  setImagePreview(null);
+                }
+              }}
               className="px-3 py-1.5 bg-white/10 hover:bg-white/20 text-white text-sm rounded-lg transition-colors flex items-center gap-1.5"
             >
               <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
@@ -826,33 +1001,218 @@ export function ProductStaging({
             </div>
 
             <div>
-              <label className="block text-white/70 text-xs mb-1">Image URL</label>
-              <input
-                type="url"
-                value={manualProduct.imageUrl}
-                onChange={(e) => setManualProduct({ ...manualProduct, imageUrl: e.target.value })}
-                placeholder="https://example.com/image.jpg"
-                className="w-full bg-black/30 text-white text-sm rounded-lg px-3 py-2 focus:outline-none focus:ring-1 focus:ring-pink-500/50 placeholder:text-white/30 border border-white/10"
-              />
+              <label className="block text-white/70 text-xs mb-1">Product Image</label>
+              {imagePreview || manualProduct.imageUrl ? (
+                <div className="relative w-32 h-32 rounded-lg overflow-hidden bg-black/30 border border-white/10">
+                  <Image
+                    src={imagePreview || manualProduct.imageUrl}
+                    alt="Product preview"
+                    fill
+                    className="object-cover"
+                  />
+                  <button
+                    onClick={clearImage}
+                    className="absolute top-1 right-1 p-1 bg-black/60 hover:bg-black/80 rounded-full transition-colors"
+                    type="button"
+                  >
+                    <svg className="w-4 h-4 text-white" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                      <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M6 18L18 6M6 6l12 12" />
+                    </svg>
+                  </button>
+                </div>
+              ) : (
+                <div
+                  onDragOver={handleDragOver}
+                  onDragLeave={handleDragLeave}
+                  onDrop={handleDrop}
+                  className={`relative border-2 border-dashed rounded-lg p-6 text-center transition-colors cursor-pointer ${
+                    isDragging
+                      ? 'border-pink-500 bg-pink-500/10'
+                      : 'border-white/20 hover:border-white/40 bg-black/20'
+                  }`}
+                >
+                  <input
+                    type="file"
+                    accept="image/*"
+                    onChange={(e) => {
+                      const file = e.target.files?.[0];
+                      if (file) handleImageUpload(file);
+                    }}
+                    className="absolute inset-0 w-full h-full opacity-0 cursor-pointer"
+                    disabled={isUploadingImage}
+                  />
+                  {isUploadingImage ? (
+                    <div className="flex flex-col items-center gap-2">
+                      <div className="animate-spin w-8 h-8 border-2 border-pink-500 border-t-transparent rounded-full" />
+                      <span className="text-white/60 text-sm">Uploading...</span>
+                    </div>
+                  ) : (
+                    <div className="flex flex-col items-center gap-2">
+                      <svg className="w-10 h-10 text-white/30" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                        <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={1.5} d="M4 16l4.586-4.586a2 2 0 012.828 0L16 16m-2-2l1.586-1.586a2 2 0 012.828 0L20 14m-6-6h.01M6 20h12a2 2 0 002-2V6a2 2 0 00-2-2H6a2 2 0 00-2 2v12a2 2 0 002 2z" />
+                      </svg>
+                      <div className="text-white/60 text-sm">
+                        <span className="text-pink-400">Click to upload</span> or drag and drop
+                      </div>
+                      <span className="text-white/40 text-xs">PNG, JPG, WebP up to 5MB</span>
+                    </div>
+                  )}
+                </div>
+              )}
+              <div className="mt-2">
+                <details className="text-white/40 text-xs">
+                  <summary className="cursor-pointer hover:text-white/60">Or paste URL manually</summary>
+                  <input
+                    type="url"
+                    value={manualProduct.imageUrl}
+                    onChange={(e) => {
+                      setManualProduct({ ...manualProduct, imageUrl: e.target.value });
+                      setImagePreview(e.target.value);
+                    }}
+                    placeholder="https://example.com/image.jpg"
+                    className="w-full mt-2 bg-black/30 text-white text-sm rounded-lg px-3 py-2 focus:outline-none focus:ring-1 focus:ring-pink-500/50 placeholder:text-white/30 border border-white/10"
+                  />
+                </details>
+              </div>
             </div>
 
+            {/* Sale Type Selector */}
             <div>
-              <label className="block text-white/70 text-xs mb-1">Checkout URL</label>
-              <input
-                type="url"
-                value={manualProduct.checkoutUrl}
-                onChange={(e) => setManualProduct({ ...manualProduct, checkoutUrl: e.target.value })}
-                placeholder="https://example.com/buy"
-                className="w-full bg-black/30 text-white text-sm rounded-lg px-3 py-2 focus:outline-none focus:ring-1 focus:ring-pink-500/50 placeholder:text-white/30 border border-white/10"
-              />
-              <p className="text-white/40 text-xs mt-1">External link where viewers can purchase this product</p>
+              <label className="block text-white/70 text-xs mb-2">Sale Type</label>
+              <div className="flex gap-2">
+                <button
+                  type="button"
+                  onClick={() => setManualProduct({ ...manualProduct, saleType: 'buy_now' })}
+                  className={`flex-1 px-3 py-2 rounded-lg text-sm font-medium transition-colors ${
+                    manualProduct.saleType === 'buy_now'
+                      ? 'bg-pink-500 text-white'
+                      : 'bg-white/10 text-white/70 hover:bg-white/20'
+                  }`}
+                >
+                  Buy Now
+                </button>
+                <button
+                  type="button"
+                  onClick={() => setManualProduct({ ...manualProduct, saleType: 'auction' })}
+                  className={`flex-1 px-3 py-2 rounded-lg text-sm font-medium transition-colors ${
+                    manualProduct.saleType === 'auction'
+                      ? 'bg-orange-500 text-white'
+                      : 'bg-white/10 text-white/70 hover:bg-white/20'
+                  }`}
+                >
+                  Auction
+                </button>
+              </div>
             </div>
+
+            {/* Buy Now: Checkout URL */}
+            {manualProduct.saleType === 'buy_now' && (
+              <div>
+                <label className="block text-white/70 text-xs mb-1">Checkout URL</label>
+                <input
+                  type="url"
+                  value={manualProduct.checkoutUrl}
+                  onChange={(e) => setManualProduct({ ...manualProduct, checkoutUrl: e.target.value })}
+                  placeholder="https://example.com/buy"
+                  className="w-full bg-black/30 text-white text-sm rounded-lg px-3 py-2 focus:outline-none focus:ring-1 focus:ring-pink-500/50 placeholder:text-white/30 border border-white/10"
+                />
+                <p className="text-white/40 text-xs mt-1">External link where viewers can purchase this product</p>
+              </div>
+            )}
+
+            {/* Auction: Starting Price, Bid Increment, Duration */}
+            {manualProduct.saleType === 'auction' && (
+              <div className="space-y-4 p-4 bg-orange-500/10 border border-orange-500/20 rounded-lg">
+                <div className="flex items-center gap-2 text-orange-400 text-sm font-medium">
+                  <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 8c-1.657 0-3 .895-3 2s1.343 2 3 2 3 .895 3 2-1.343 2-3 2m0-8c1.11 0 2.08.402 2.599 1M12 8V7m0 1v8m0 0v1m0-1c-1.11 0-2.08-.402-2.599-1M21 12a9 9 0 11-18 0 9 9 0 0118 0z" />
+                  </svg>
+                  Auction Settings
+                </div>
+
+                <div className="grid grid-cols-2 gap-3">
+                  <div>
+                    <label className="block text-white/70 text-xs mb-1">
+                      Starting Price ({manualProduct.currency ?? 'ILS'}) *
+                    </label>
+                    <div className="relative">
+                      <span className="absolute left-3 top-1/2 -translate-y-1/2 text-white/40 text-sm">
+                        {manualProduct.currency ?? 'ILS'}
+                      </span>
+                      <input
+                        type="number"
+                        step="0.01"
+                        value={manualProduct.startingPrice ?? ''}
+                        onChange={(e) => setManualProduct({ ...manualProduct, startingPrice: e.target.value })}
+                        placeholder="0.00"
+                        className="w-full bg-black/30 text-white text-sm rounded-lg pl-12 pr-3 py-2 focus:outline-none focus:ring-1 focus:ring-orange-500/50 placeholder:text-white/30 border border-white/10"
+                      />
+                    </div>
+                    <p className="text-white/40 text-xs mt-1">Minimum bid to start</p>
+                  </div>
+                  <div>
+                    <label className="block text-white/70 text-xs mb-1">
+                      Bid Increment ({manualProduct.currency ?? 'ILS'}) *
+                    </label>
+                    <div className="relative">
+                      <span className="absolute left-3 top-1/2 -translate-y-1/2 text-white/40 text-sm">
+                        {manualProduct.currency ?? 'ILS'}
+                      </span>
+                      <input
+                        type="number"
+                        step="0.01"
+                        value={manualProduct.bidIncrement ?? ''}
+                        onChange={(e) => setManualProduct({ ...manualProduct, bidIncrement: e.target.value })}
+                        placeholder="0.00"
+                        className="w-full bg-black/30 text-white text-sm rounded-lg pl-12 pr-3 py-2 focus:outline-none focus:ring-1 focus:ring-orange-500/50 placeholder:text-white/30 border border-white/10"
+                      />
+                    </div>
+                    <p className="text-white/40 text-xs mt-1">Min increase per bid</p>
+                  </div>
+                </div>
+
+                <div>
+                  <label className="block text-white/70 text-xs mb-1">
+                    Auction Timer (optional)
+                  </label>
+                  <div className="flex gap-2">
+                    {[
+                      { label: 'No timer', value: '' },
+                      { label: '30 sec', value: '30' },
+                      { label: '1 min', value: '60' },
+                      { label: '2 min', value: '120' },
+                      { label: '5 min', value: '300' },
+                    ].map((option) => (
+                      <button
+                        key={option.value}
+                        type="button"
+                        onClick={() => setManualProduct({ ...manualProduct, auctionDuration: option.value })}
+                        className={`flex-1 px-2 py-2 rounded-lg text-xs font-medium transition-colors ${
+                          manualProduct.auctionDuration === option.value
+                            ? 'bg-orange-500 text-white'
+                            : 'bg-white/10 text-white/70 hover:bg-white/20'
+                        }`}
+                      >
+                        {option.label}
+                      </button>
+                    ))}
+                  </div>
+                  <p className="text-white/40 text-xs mt-1">
+                    {manualProduct.auctionDuration
+                      ? 'Countdown starts when you activate the auction'
+                      : 'You control when the auction ends manually'}
+                  </p>
+                </div>
+              </div>
+            )}
 
             <div className="flex justify-end">
               <button
                 onClick={addManualProduct}
-                disabled={!manualProduct.title || !manualProduct.price || isAddingManual}
-                className="px-4 py-2 bg-pink-500 hover:bg-pink-600 disabled:opacity-50 disabled:cursor-not-allowed text-white text-sm rounded-lg transition-colors flex items-center gap-2"
+                disabled={!isManualProductValid() || isAddingManual}
+                className={`px-4 py-2 ${
+                  manualProduct.saleType === 'auction' ? 'bg-orange-500 hover:bg-orange-600' : 'bg-pink-500 hover:bg-pink-600'
+                } disabled:opacity-50 disabled:cursor-not-allowed text-white text-sm rounded-lg transition-colors flex items-center gap-2`}
               >
                 {isAddingManual ? (
                   <>

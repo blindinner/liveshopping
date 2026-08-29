@@ -33,7 +33,7 @@ export async function PATCH(
 
     const { data: show, error: showError } = await serviceClient
       .from('shows')
-      .select('title, scheduled_at, embed_url, brand:brands(shopify_domain)')
+      .select('title, scheduled_at, embed_url, invitation_email_subject, invitation_email_body, brand:brands(shopify_domain)')
       .eq('id', showId)
       .single();
 
@@ -60,6 +60,8 @@ export async function PATCH(
       inviteToken: invitation.invite_token,
       baseUrl,
       embedUrl: effectiveEmbedUrl,
+      customSubject: show.invitation_email_subject,
+      customBody: show.invitation_email_body,
     });
 
     if (!result.success) {
@@ -69,10 +71,13 @@ export async function PATCH(
       );
     }
 
-    // Update sent_at timestamp
+    // Update sent_at timestamp and status
     await serviceClient
       .from('invitations')
-      .update({ sent_at: new Date().toISOString() })
+      .update({
+        sent_at: new Date().toISOString(),
+        status: 'sent'
+      })
       .eq('id', invitationId);
 
     return NextResponse.json({ success: true });

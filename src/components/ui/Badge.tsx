@@ -1,7 +1,7 @@
 'use client';
 
 interface BadgeProps {
-  variant?: 'live' | 'scheduled' | 'ended' | 'default';
+  variant?: 'live' | 'scheduled' | 'ended' | 'default' | 'success' | 'danger';
   children: React.ReactNode;
   pulse?: boolean;
 }
@@ -12,6 +12,8 @@ export function Badge({ variant = 'default', children, pulse = false }: BadgePro
     scheduled: 'bg-yellow-500 text-black',
     ended: 'bg-gray-500 text-white',
     default: 'bg-white/20 text-white',
+    success: 'bg-green-500 text-white',
+    danger: 'bg-red-500 text-white',
   };
 
   return (

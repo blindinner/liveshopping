@@ -67,6 +67,14 @@ export function HostLayout({
           </div>
 
           <div className="flex items-center gap-3">
+            {show.status === 'scheduled' && (
+              <Link
+                href={`/host/${showId}/setup`}
+                className="px-3 py-1.5 text-sm text-white/70 hover:text-white border border-white/20 hover:border-white/40 rounded-lg transition-colors"
+              >
+                Setup
+              </Link>
+            )}
             {show.status === 'live' ? (
               <>
                 <Badge variant="live" pulse>
@@ -80,7 +88,7 @@ export function HostLayout({
                 )}
               </>
             ) : show.status === 'scheduled' ? (
-              <Badge variant="scheduled">Scheduled</Badge>
+              <Badge variant="scheduled">Studio</Badge>
             ) : (
               <Badge variant="ended">Ended</Badge>
             )}

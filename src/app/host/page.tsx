@@ -4,11 +4,8 @@ import { useEffect, useState, Suspense } from 'react';
 import Link from 'next/link';
 import Image from 'next/image';
 import { useRouter, useSearchParams } from 'next/navigation';
-import { Button } from '@/components/ui/Button';
-import { Input } from '@/components/ui/Input';
 import { Badge } from '@/components/ui/Badge';
-import { ShowTypeToggle } from '@/components/host/ShowTypeToggle';
-import type { Show, AuctionType } from '@/types/database';
+import type { Show } from '@/types/database';
 
 const CLOUDFLARE_SUBDOMAIN = process.env.NEXT_PUBLIC_CLOUDFLARE_ACCOUNT_ID || 'f83anpt0jiknxr1e';
 
@@ -45,12 +42,7 @@ function LiveShoppingContent() {
   const [shows, setShows] = useState<ShowWithAnalytics[]>([]);
   const [isLoading, setIsLoading] = useState(true);
   const [isCreating, setIsCreating] = useState(false);
-  const [newShowTitle, setNewShowTitle] = useState('');
-  const [newShowDate, setNewShowDate] = useState('');
-  const [newShowType, setNewShowType] = useState<AuctionType>('public');
-  const [newShowEmbedUrl, setNewShowEmbedUrl] = useState('');
   const [brandId, setBrandId] = useState<string | null>(null);
-  const [brandDomain, setBrandDomain] = useState<string | null>(null);
   const [justInstalled, setJustInstalled] = useState(false);
   const router = useRouter();
   const searchParams = useSearchParams();
@@ -70,7 +62,6 @@ function LiveShoppingContent() {
     const data = await response.json();
     if (data.brands?.[0]) {
       setBrandId(data.brands[0].id);
-      setBrandDomain(data.brands[0].shopify_domain || null);
     }
   };
 
@@ -86,27 +77,30 @@ function LiveShoppingContent() {
     }
   };
 
-  const handleCreateShow = async (e: React.FormEvent) => {
-    e.preventDefault();
-    if (!newShowTitle || !newShowDate || !brandId) return;
+  const handleCreateShow = async () => {
+    if (!brandId) return;
 
     setIsCreating(true);
     try {
+      // Create show with defaults - user will configure in setup page
+      const scheduledAt = new Date();
+      scheduledAt.setHours(scheduledAt.getHours() + 1); // Default: 1 hour from now
+
       const response = await fetch('/api/shows', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({
-          title: newShowTitle,
-          scheduledAt: new Date(newShowDate).toISOString(),
+          title: 'Untitled Show',
+          scheduledAt: scheduledAt.toISOString(),
           brandId,
-          auctionType: newShowType,
-          embedUrl: newShowEmbedUrl || undefined,
+          auctionType: 'public',
         }),
       });
 
       if (response.ok) {
         const { show } = await response.json();
-        router.push(`/host/${show.id}`);
+        // Redirect directly to setup page with settings tab
+        router.push(`/host/${show.id}/setup?tab=settings`);
       }
     } catch (error) {
       console.error('Failed to create show:', error);
@@ -154,88 +148,21 @@ function LiveShoppingContent() {
       </div>
 
       {/* Create New Show */}
-      <section className="bg-white/5 rounded-2xl p-4 md:p-6 border border-white/10 mb-6">
-        <h2 className="text-lg font-semibold text-white mb-4">Start New Stream</h2>
-        <form onSubmit={handleCreateShow} className="space-y-4">
-          <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-            <Input
-              name="title"
-              label="Show Title"
-              placeholder="e.g., Summer Sale 2024"
-              value={newShowTitle}
-              onChange={(e) => setNewShowTitle(e.target.value)}
-              required
-            />
-            <Input
-              name="scheduled_at"
-              label="Date & Time"
-              type="datetime-local"
-              value={newShowDate}
-              onChange={(e) => setNewShowDate(e.target.value)}
-              required
-              dir="ltr"
-            />
-          </div>
-          <ShowTypeToggle value={newShowType} onChange={setNewShowType} />
-
-          {/* Show where invitation links will go */}
-          {newShowType === 'private' && (
-            <div className={`p-3 rounded-lg border ${brandDomain ? 'bg-green-500/10 border-green-500/20' : 'bg-yellow-500/10 border-yellow-500/20'}`}>
-              <div className="flex items-start gap-2">
-                {brandDomain ? (
-                  <>
-                    <svg className="w-5 h-5 text-green-400 mt-0.5 flex-shrink-0" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                      <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M5 13l4 4L19 7" />
-                    </svg>
-                    <div>
-                      <p className="text-green-400 text-sm font-medium">Shopify store connected</p>
-                      <p className="text-white/70 text-xs mt-1">
-                        Invitation links will direct guests to: <span className="text-green-300 font-mono">{brandDomain}</span>
-                      </p>
-                    </div>
-                  </>
-                ) : (
-                  <>
-                    <svg className="w-5 h-5 text-yellow-400 mt-0.5 flex-shrink-0" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                      <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 9v2m0 4h.01m-6.938 4h13.856c1.54 0 2.502-1.667 1.732-3L13.732 4c-.77-1.333-2.694-1.333-3.464 0L3.34 16c-.77 1.333.192 3 1.732 3z" />
-                    </svg>
-                    <div>
-                      <p className="text-yellow-400 text-sm font-medium">No store connected</p>
-                      <p className="text-white/70 text-xs mt-1">
-                        Invitation links will direct guests to shoppablevids.com. Connect a Shopify store or set a custom embed URL below to use your own domain.
-                      </p>
-                    </div>
-                  </>
-                )}
-              </div>
-            </div>
+      <section className="mb-6">
+        <button
+          onClick={handleCreateShow}
+          disabled={isCreating || !brandId}
+          className="w-full bg-gradient-to-r from-pink-500 to-purple-500 hover:from-pink-600 hover:to-purple-600 disabled:opacity-50 disabled:cursor-not-allowed text-white font-semibold py-4 px-6 rounded-2xl transition-all flex items-center justify-center gap-3 shadow-lg shadow-pink-500/20"
+        >
+          {isCreating ? (
+            <div className="animate-spin w-6 h-6 border-2 border-white border-t-transparent rounded-full" />
+          ) : (
+            <svg className="w-6 h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+              <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 6v6m0 0v6m0-6h6m-6 0H6" />
+            </svg>
           )}
-
-          {/* Embed URL - optional override */}
-          <div className="space-y-2">
-            <Input
-              name="embed_url"
-              label={brandDomain ? "Custom Embed URL (Optional Override)" : "Embed URL (Optional)"}
-              placeholder={brandDomain ? `https://${brandDomain}/live` : "https://yourbrand.com/live-auction"}
-              value={newShowEmbedUrl}
-              onChange={(e) => setNewShowEmbedUrl(e.target.value)}
-              type="url"
-            />
-            <p className="text-white/40 text-xs">
-              {brandDomain
-                ? `Leave empty to use your Shopify store (${brandDomain}), or enter a custom URL to override.`
-                : 'If this show will be embedded on another website, enter the URL here. Invitation links will redirect viewers to this URL.'}
-            </p>
-          </div>
-
-          <Button
-            type="submit"
-            isLoading={isCreating}
-            disabled={!newShowTitle || !newShowDate || !brandId}
-          >
-            Create Show
-          </Button>
-        </form>
+          {isCreating ? 'Creating...' : 'Create New Live Stream'}
+        </button>
       </section>
 
       {/* Shows List */}

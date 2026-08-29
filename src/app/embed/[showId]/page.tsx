@@ -213,25 +213,47 @@ function MobileProductCard({
               {t.registerToBid}
             </button>
           ) : isAuctionActive ? (
-            <div className="flex gap-2">
-              <input
-                type="number"
-                value={bidAmount}
-                onChange={(e) => setBidAmount(e.target.value)}
-                placeholder={getMinimumBid().toString()}
-                className="flex-1 bg-black/30 text-white text-sm rounded-full px-4 py-2 border border-white/10 focus:outline-none focus:border-orange-500 min-w-0"
-              />
+            <div className="space-y-2">
+              {/* Quick bid minimum button */}
               <button
-                onClick={handlePlaceBid}
-                disabled={isLoading || !bidAmount || parseFloat(bidAmount) < getMinimumBid()}
-                className="shrink-0 px-5 py-2 bg-orange-500 hover:bg-orange-600 active:bg-orange-700 disabled:opacity-50 text-white font-semibold text-sm rounded-full transition-colors"
+                onClick={() => onPlaceBid && onPlaceBid(getMinimumBid())}
+                disabled={isLoading}
+                className="w-full py-2.5 bg-orange-500 hover:bg-orange-600 active:bg-orange-700 disabled:opacity-50 text-white font-semibold text-sm rounded-full transition-colors flex items-center justify-center gap-2"
               >
                 {isLoading ? (
                   <div className="w-5 h-5 border-2 border-white border-t-transparent rounded-full animate-spin" />
                 ) : (
-                  t.placeBid
+                  <>
+                    {t.placeBid} {formatPrice(getMinimumBid(), product.currency)}
+                  </>
                 )}
               </button>
+              {/* Custom bid option */}
+              <details className="group">
+                <summary className="text-white/50 text-xs text-center cursor-pointer hover:text-white/70 list-none flex items-center justify-center gap-1">
+                  <span>{locale === 'he' ? 'או הזן סכום גבוה יותר' : 'or enter a higher amount'}</span>
+                  <svg className="w-3 h-3 transition-transform group-open:rotate-180" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M19 9l-7 7-7-7" />
+                  </svg>
+                </summary>
+                <div className="flex gap-2 mt-2">
+                  <input
+                    type="number"
+                    value={bidAmount}
+                    onChange={(e) => setBidAmount(e.target.value)}
+                    placeholder={getMinimumBid().toString()}
+                    min={getMinimumBid()}
+                    className="flex-1 bg-black/30 text-white text-sm rounded-full px-4 py-2 border border-white/10 focus:outline-none focus:border-orange-500 min-w-0"
+                  />
+                  <button
+                    onClick={handlePlaceBid}
+                    disabled={isLoading || !bidAmount || parseFloat(bidAmount) < getMinimumBid()}
+                    className="shrink-0 px-5 py-2 bg-orange-500 hover:bg-orange-600 active:bg-orange-700 disabled:opacity-50 text-white font-semibold text-sm rounded-full transition-colors"
+                  >
+                    {t.placeBid}
+                  </button>
+                </div>
+              </details>
             </div>
           ) : (
             <p className="text-center text-white/50 text-sm py-1">

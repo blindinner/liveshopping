@@ -2,6 +2,7 @@ import { resend } from './client';
 import {
   getInvitationEmailHtml,
   getInvitationEmailText,
+  getInvitationEmailSubject,
   getConfirmationEmailHtml,
   getConfirmationEmailText,
 } from './templates';
@@ -18,6 +19,8 @@ interface SendInvitationEmailParams {
   inviteToken: string;
   baseUrl: string;
   embedUrl?: string;
+  customSubject?: string | null;
+  customBody?: string | null;
 }
 
 export async function sendInvitationEmail({
@@ -28,6 +31,8 @@ export async function sendInvitationEmail({
   inviteToken,
   baseUrl,
   embedUrl,
+  customSubject,
+  customBody,
 }: SendInvitationEmailParams): Promise<{ success: boolean; error?: string }> {
   // Use embed URL if configured - the widget will handle registration
   let inviteUrl: string;
@@ -45,17 +50,21 @@ export async function sendInvitationEmail({
     joinUrl = `${baseUrl}/live/${showId}?token=${inviteToken}`;
   }
 
+  // Get email subject (custom or default)
+  const subject = getInvitationEmailSubject({ showTitle, customSubject });
+
   try {
     const { error } = await resend.emails.send({
       from: `${FROM_NAME} <${FROM_EMAIL}>`,
       to,
-      subject: `You're invited to ${showTitle}`,
+      subject,
       html: getInvitationEmailHtml({
         recipientEmail: to,
         showTitle,
         showDate,
         inviteUrl,
         joinUrl,
+        customBody,
       }),
       text: getInvitationEmailText({
         recipientEmail: to,
@@ -63,6 +72,7 @@ export async function sendInvitationEmail({
         showDate,
         inviteUrl,
         joinUrl,
+        customBody,
       }),
     });
 
