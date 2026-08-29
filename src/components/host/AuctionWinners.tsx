@@ -24,7 +24,7 @@ interface AuctionWinner {
   show_product_id: string;
   bidder_id: string;
   winning_amount: number;
-  payment_status: 'pending' | 'paid';
+  payment_status: 'needs_invoice' | 'invoice_sent' | 'paid';
   paid_at: string | null;
   created_at: string;
   bidder: Bidder;
@@ -231,13 +231,14 @@ Date: ${formatDate(bid.created_at)}`;
                   <span className="px-2 py-1 bg-green-500/20 text-green-400 text-xs rounded-full">
                     Paid
                   </span>
+                ) : winner.payment_status === 'invoice_sent' ? (
+                  <span className="px-2 py-1 bg-blue-500/20 text-blue-400 text-xs rounded-full">
+                    Invoice Sent
+                  </span>
                 ) : (
-                  <button
-                    onClick={() => markAsPaid(winner.id)}
-                    className="px-2 py-1 bg-yellow-500/20 text-yellow-400 text-xs rounded-full hover:bg-yellow-500/30 transition-colors"
-                  >
-                    Mark Paid
-                  </button>
+                  <span className="px-2 py-1 bg-yellow-500/20 text-yellow-400 text-xs rounded-full">
+                    Needs Invoice
+                  </span>
                 )}
               </div>
             </div>

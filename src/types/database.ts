@@ -245,13 +245,17 @@ export interface Bid {
   bidder?: Bidder;
 }
 
+export type WinnerPaymentStatus = 'needs_invoice' | 'invoice_sent' | 'paid';
+
 export interface AuctionWinner {
   id: string;
   show_product_id: string;
   bidder_id: string;
   winning_amount: number;
-  payment_status: 'pending' | 'paid';
+  payment_status: WinnerPaymentStatus;
+  status_updated_at: string | null;
   paid_at: string | null;
+  notes: string | null;
   created_at: string;
   // Joined data
   bidder?: Bidder;

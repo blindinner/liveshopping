@@ -16,15 +16,20 @@ export async function PATCH(
     }
 
     const body = await request.json();
-    const { payment_status } = body;
+    const { payment_status, notes } = body;
 
     const updates: Record<string, unknown> = {};
 
-    if (payment_status) {
+    if (payment_status !== undefined) {
       updates.payment_status = payment_status;
+      updates.status_updated_at = new Date().toISOString();
       if (payment_status === 'paid') {
         updates.paid_at = new Date().toISOString();
       }
+    }
+
+    if (notes !== undefined) {
+      updates.notes = notes;
     }
 
     const serviceClient = createServiceClient();

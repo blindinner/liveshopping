@@ -61,7 +61,7 @@ export async function PATCH(
             show_product_id: productId,
             bidder_id: highestBid.bidder_id,
             winning_amount: highestBid.amount,
-            payment_status: 'pending',
+            payment_status: 'needs_invoice',
           }, {
             onConflict: 'show_product_id',
           })

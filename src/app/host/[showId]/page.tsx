@@ -24,8 +24,10 @@ export default function HostShowRedirect() {
         // Redirect based on show status
         if (show.status === 'scheduled') {
           router.replace(`/host/${showId}/setup`);
+        } else if (show.status === 'ended') {
+          router.replace(`/host/${showId}/results`);
         } else {
-          // live or ended -> go to live/studio view
+          // live -> go to studio view
           router.replace(`/host/${showId}/live`);
         }
       } catch (err) {
