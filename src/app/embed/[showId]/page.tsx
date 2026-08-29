@@ -8,10 +8,12 @@ import { PollView, PollButton } from '@/components/viewer/PollCard';
 import { BidderRegistration } from '@/components/viewer/BidderRegistration';
 import { AuctionWinnerModal } from '@/components/viewer/AuctionWinnerModal';
 import { Countdown } from '@/components/viewer/Countdown';
+import { Chat } from '@/components/viewer/Chat';
 import {
   useShowProducts,
   useViewerPresence,
   useShowStatus,
+  useChatMessages,
 } from '@/hooks/useRealtime';
 import { useCart } from '@/hooks/useCart';
 import { useActivePoll } from '@/hooks/usePolls';
@@ -294,6 +296,16 @@ export default function EmbedLiveViewerPage() {
   const [isPollOpen, setIsPollOpen] = useState(false);
   const [showBidderRegistration, setShowBidderRegistration] = useState(false);
   const [dismissedWinIds, setDismissedWinIds] = useState<string[]>([]);
+  const [viewerName, setViewerName] = useState<string | null>(null);
+  const [showNamePrompt, setShowNamePrompt] = useState(false);
+  const [nameInput, setNameInput] = useState('');
+
+  // Auto-set viewer name from guest profile for private show invitees
+  useEffect(() => {
+    if (guestProfile?.name && !viewerName) {
+      setViewerName(guestProfile.name);
+    }
+  }, [guestProfile, viewerName]);
 
   // Real-time hooks
   const { show, isLoading: showLoading } = useShowStatus(showId);
@@ -307,6 +319,7 @@ export default function EmbedLiveViewerPage() {
   const { activeProduct } = useShowProducts(showId);
   const { viewerCount } = useViewerPresence(showId, viewerId);
   const { activePoll, hasVoted, submitVote } = useActivePoll(showId, viewerId);
+  const { messages, sendMessage } = useChatMessages(showId, viewerId);
 
   // Auction hooks
   const { isRegistered: isRegisteredBidder, register: registerBidder } = useBidderRegistration(showId, viewerId);
@@ -368,6 +381,23 @@ export default function EmbedLiveViewerPage() {
     checkout();
   }, [checkout]);
 
+  // Handle chat send
+  const handleSendMessage = useCallback((message: string) => {
+    if (viewerName) {
+      sendMessage(viewerName, message);
+    }
+  }, [viewerName, sendMessage]);
+
+  // Handle name submission
+  const handleNameSubmit = (e: React.FormEvent) => {
+    e.preventDefault();
+    if (nameInput.trim()) {
+      setViewerName(nameInput.trim());
+      setShowNamePrompt(false);
+      setNameInput('');
+    }
+  };
+
   // Handle bidder registration
   const handleRegisterBidder = async (name: string, email: string, phone?: string) => {
     const bidder = await registerBidder(name, email, phone);
@@ -409,12 +439,20 @@ export default function EmbedLiveViewerPage() {
       showEnded: 'השידור הסתיים',
       checkout: 'לתשלום',
       live: 'לייב',
+      enterName: 'הזן את שמך כדי לשוחח',
+      yourName: 'השם שלך',
+      join: 'הצטרף',
+      cancel: 'ביטול',
     },
     en: {
       loading: 'Loading...',
       showEnded: 'Show ended',
       checkout: 'Checkout',
       live: 'LIVE',
+      enterName: 'Enter your name to chat',
+      yourName: 'Your name',
+      join: 'Join',
+      cancel: 'Cancel',
     },
   }[locale];
 
@@ -635,6 +673,16 @@ export default function EmbedLiveViewerPage() {
           </button>
         </div>
 
+        {/* Chat overlay */}
+        <div className="absolute bottom-0 left-0 right-0 z-10 pointer-events-auto">
+          <Chat
+            messages={messages}
+            onSendMessage={handleSendMessage}
+            viewerName={viewerName}
+            onRequestName={() => setShowNamePrompt(true)}
+            locale={locale}
+          />
+        </div>
       </div>
 
       {/* Poll full-screen view */}
@@ -709,6 +757,40 @@ export default function EmbedLiveViewerPage() {
         onRegister={handleRegisterBidder}
         locale={locale}
       />
+
+      {/* Name prompt modal for chat */}
+      {showNamePrompt && (
+        <div className="fixed inset-0 bg-black/60 backdrop-blur-sm z-50 flex items-center justify-center p-4">
+          <form onSubmit={handleNameSubmit} className="bg-gray-900 rounded-2xl p-6 w-full max-w-sm">
+            <h3 className="text-white font-semibold text-lg mb-4">{t.enterName}</h3>
+            <input
+              type="text"
+              value={nameInput}
+              onChange={(e) => setNameInput(e.target.value)}
+              placeholder={t.yourName}
+              maxLength={30}
+              autoFocus
+              className="w-full bg-white/10 text-white placeholder-white/50 px-4 py-3 rounded-xl border border-white/20 focus:outline-none focus:ring-2 focus:ring-pink-500 mb-4"
+            />
+            <div className="flex gap-3">
+              <button
+                type="button"
+                onClick={() => setShowNamePrompt(false)}
+                className="flex-1 py-3 bg-white/10 text-white rounded-xl font-medium"
+              >
+                {t.cancel}
+              </button>
+              <button
+                type="submit"
+                disabled={!nameInput.trim()}
+                className="flex-1 py-3 bg-pink-500 text-white rounded-xl font-medium disabled:opacity-50"
+              >
+                {t.join}
+              </button>
+            </div>
+          </form>
+        </div>
+      )}
 
       {/* Auction Winner Modal */}
       {latestWin && (
