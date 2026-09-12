@@ -1,17 +1,27 @@
 import { NextResponse } from 'next/server';
-import { createServiceClient } from '@/lib/supabase/server';
+import { createClient, createServiceClient } from '@/lib/supabase/server';
 
-// GET /api/brands - Get brands (for host, service role needed)
+// GET /api/brands - Get brands for the authenticated user
 export async function GET() {
   try {
-    const supabase = createServiceClient();
+    const supabase = await createClient();
+    const { data: { user } } = await supabase.auth.getUser();
 
-    // For MVP, return all brands (should be just one)
-    // Don't return the storefront token to the client
-    const { data: brands, error } = await supabase
+    if (!user) {
+      return NextResponse.json(
+        { error: 'Unauthorized' },
+        { status: 401 }
+      );
+    }
+
+    // Use service client to access brands table (RLS restricts direct access)
+    const supabaseService = createServiceClient();
+
+    // Return only brands owned by the authenticated user
+    const { data: brands, error } = await supabaseService
       .from('brands')
       .select('id, name, shopify_domain, website_url, created_at')
-      .limit(1);
+      .eq('user_id', user.id);
 
     if (error) {
       throw error;
@@ -30,6 +40,16 @@ export async function GET() {
 // PATCH /api/brands - Update brand settings
 export async function PATCH(request: Request) {
   try {
+    const supabase = await createClient();
+    const { data: { user } } = await supabase.auth.getUser();
+
+    if (!user) {
+      return NextResponse.json(
+        { error: 'Unauthorized' },
+        { status: 401 }
+      );
+    }
+
     const { brandId, website_url } = await request.json();
 
     if (!brandId) {
@@ -39,17 +59,26 @@ export async function PATCH(request: Request) {
       );
     }
 
-    const supabase = createServiceClient();
+    const supabaseService = createServiceClient();
 
-    const { data: brand, error } = await supabase
+    // Only update if the brand belongs to the authenticated user
+    const { data: brand, error } = await supabaseService
       .from('brands')
       .update({ website_url: website_url || null })
       .eq('id', brandId)
+      .eq('user_id', user.id)
       .select('id, name, shopify_domain, website_url, created_at')
       .single();
 
     if (error) {
       throw error;
+    }
+
+    if (!brand) {
+      return NextResponse.json(
+        { error: 'Brand not found or access denied' },
+        { status: 404 }
+      );
     }
 
     return NextResponse.json({ brand });
@@ -65,6 +94,16 @@ export async function PATCH(request: Request) {
 // POST /api/brands - Create a brand (for initial setup)
 export async function POST(request: Request) {
   try {
+    const supabase = await createClient();
+    const { data: { user } } = await supabase.auth.getUser();
+
+    if (!user) {
+      return NextResponse.json(
+        { error: 'Unauthorized' },
+        { status: 401 }
+      );
+    }
+
     const { name, shopifyDomain, shopifyStorefrontToken } = await request.json();
 
     if (!name || !shopifyDomain || !shopifyStorefrontToken) {
@@ -74,14 +113,15 @@ export async function POST(request: Request) {
       );
     }
 
-    const supabase = createServiceClient();
+    const supabaseService = createServiceClient();
 
-    const { data: brand, error } = await supabase
+    const { data: brand, error } = await supabaseService
       .from('brands')
       .insert({
         name,
         shopify_domain: shopifyDomain,
         shopify_storefront_token: shopifyStorefrontToken,
+        user_id: user.id,
       })
       .select('id, name, shopify_domain')
       .single();

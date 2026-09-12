@@ -100,11 +100,19 @@ export async function GET(request: NextRequest) {
       // Continue without storefront token - can be added manually later
     }
 
-    // Check if brand already exists
+    // Check if brand already exists for this user
+    // First check if user already has a brand
+    const userId = oauthState.user_id;
+
+    if (!userId) {
+      console.error('No user_id in OAuth state - user must be logged in to connect Shopify');
+      return redirectToError('not_logged_in');
+    }
+
     const { data: existingBrand } = await supabase
       .from('brands')
       .select('id')
-      .eq('shopify_domain', shop)
+      .eq('user_id', userId)
       .single();
 
     const brandData = {
@@ -118,21 +126,22 @@ export async function GET(request: NextRequest) {
         webhook_secret: apiSecret,
         domain: shop,
       },
+      user_id: userId,
       ...(storefrontToken && { shopify_storefront_token: storefrontToken }),
     };
 
     let brandId: string;
 
     if (existingBrand) {
-      // Update existing brand
+      // Update existing brand for this user
       await supabase
         .from('brands')
         .update(brandData)
         .eq('id', existingBrand.id);
       brandId = existingBrand.id;
-      console.log(`Updated existing brand ${brandId} for ${shop}`);
+      console.log(`Updated existing brand ${brandId} for user ${userId} with shop ${shop}`);
     } else {
-      // Create new brand
+      // Create new brand for this user
       const { data: newBrand, error: createError } = await supabase
         .from('brands')
         .insert({
@@ -148,7 +157,7 @@ export async function GET(request: NextRequest) {
       }
 
       brandId = newBrand.id;
-      console.log(`Created new brand ${brandId} for ${shop}`);
+      console.log(`Created new brand ${brandId} for user ${userId} with shop ${shop}`);
     }
 
     // Register webhooks
